@@ -1,0 +1,8 @@
+import {cookies} from "next/headers"; import {createHash,randomBytes} from "crypto"; import {prisma} from "./prisma";
+export const hashCode=(v:string)=>createHash("sha256").update(v).digest("hex");
+export const makeCode=(prefix:string)=>`${prefix}-${randomBytes(3).toString("hex").toUpperCase()}`;
+export async function setSession(campaignId:string,role:"DM"|"PLAYER"){const id=randomBytes(32).toString("hex");await prisma.campaignSession.create({data:{id,campaignId,role,expiresAt:new Date(Date.now()+1000*60*60*24*7)}});(await cookies()).set("campaign_session",id,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:60*60*24*7});}
+export async function getSession(){const id=(await cookies()).get("campaign_session")?.value;if(!id)return null;const s=await prisma.campaignSession.findUnique({where:{id}});return s&&s.expiresAt>new Date()?s:null}
+export async function requireCampaign(campaignId:string,dm=false){const s=await getSession();if(!s||s.campaignId!==campaignId||(dm&&s.role!=="DM"))throw new Error("Unauthorized");return s}
+export async function setCreationHandoff(campaignId:string,dmCode:string,playerCode:string){(await cookies()).set("campaign_creation_codes",Buffer.from(JSON.stringify({campaignId,dmCode,playerCode})).toString("base64url"),{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:300});}
+export async function getCreationHandoff(){const value=(await cookies()).get("campaign_creation_codes")?.value;if(!value)return null;try{return JSON.parse(Buffer.from(value,"base64url").toString("utf8")) as {campaignId:string;dmCode:string;playerCode:string}}catch{return null}}

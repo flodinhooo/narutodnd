@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Reservoir {
+  VERY_LOW
+  LOW
+  AVERAGE
+  HIGH
+  VERY_HIGH
+  EXCEPTIONAL
+  MONSTER
+  SPECIAL
+}
+
+enum RegenRank {
+  NOVICE
+  TRAINED
+  ADVANCED
+  EXPERT
+  MASTER
+}
+
+enum SkillProficiency {
+  NONE
+  PROFICIENT
+  EXPERTISE
+}
+
+enum JutsuRank {
+  E
+  D
+  C
+  B
+  A
+  S
+}
+
+model Campaign {
+  id             String            @id @default(cuid())
+  name           String
+  description    String            @default("")
+  dmCodeHash     String            @unique
+  playerCodeHash String            @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  characters     Character[]
+  sessions       CampaignSession[]
+}
+
+model ChakraNature {
+  id          String                  @id @default(cuid())
+  key         String                  @unique
+  displayName String
+  description String
+  characters  CharacterChakraNature[]
+  jutsu       JutsuChakraNature[]
+}
+
+model Character {
+  id                        String                   @id @default(cuid())
+  campaignId                String
+  campaign                  Campaign                 @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name                      String
+  level                     Int                      @default(1)
+  portraitUrl               String?
+  background                String                   @default("")
+  alignment                 String                   @default("")
+  description               String                   @default("")
+  speed                     Int                      @default(30)
+  maxHp                     Int                      @default(10)
+  currentHp                 Int                      @default(10)
+  hitDie                    String                   @default("d10")
+  acOverride                Int?
+  str                       Int                      @default(10)
+  dex                       Int                      @default(10)
+  con                       Int                      @default(10)
+  int                       Int                      @default(10)
+  wis                       Int                      @default(10)
+  cha                       Int                      @default(10)
+  currentChakra             Int                      @default(0)
+  reservoir                 Reservoir                @default(AVERAGE)
+  customReservoirMultiplier Float?
+  regenRank                 RegenRank                @default(TRAINED)
+  controlRank               RegenRank                @default(TRAINED)
+  breakthroughPoints        Int                      @default(0)
+  shortRestsSinceLongRest   Int                      @default(0)
+  limitBreakUsed            Boolean                  @default(false)
+  deathSaveSuccesses        Int                      @default(0)
+  deathSaveFailures         Int                      @default(0)
+  severelyWounded           Boolean                  @default(false)
+  natureLinks               CharacterChakraNature[]
+  jutsuLinks                CharacterJutsu[]
+  skills                    SkillProficiencyRecord[]
+  savingThrows              SavingThrowProficiency[]
+  dmData                    CharacterDMData?
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+
+  @@index([campaignId])
+}
+
+model CharacterChakraNature {
+  characterId     String
+  chakraNatureId  String
+  isPrimary       Boolean      @default(false)
+  acquiredAtLevel Int          @default(1)
+  source          String       @default("CHARACTER_CREATION")
+  character       Character    @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  nature          ChakraNature @relation(fields: [chakraNatureId], references: [id])
+
+  @@id([characterId, chakraNatureId])
+}
+
+model Jutsu {
+  id                    String              @id @default(cuid())
+  slug                  String              @unique
+  name                  String
+  japaneseName          String?
+  description           String
+  rank                  JutsuRank
+  chakraCost            Int
+  range                 String
+  duration              String
+  actionType            String
+  attackType            String?
+  damageDice            String?
+  damageType            String?
+  saveAbility           String?
+  requiresConcentration Boolean             @default(false)
+  natures               JutsuChakraNature[]
+  characterLinks        CharacterJutsu[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+}
+
+model JutsuChakraNature {
+  jutsuId        String
+  chakraNatureId String
+  jutsu          Jutsu        @relation(fields: [jutsuId], references: [id], onDelete: Cascade)
+  nature         ChakraNature @relation(fields: [chakraNatureId], references: [id], onDelete: Cascade)
+
+  @@id([jutsuId, chakraNatureId])
+}
+
+model CharacterJutsu {
+  characterId    String
+  jutsuId        String
+  source         String    @default("CHARACTER_CREATION")
+  learnedAtLevel Int       @default(1)
+  notes          String?
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  jutsu          Jutsu     @relation(fields: [jutsuId], references: [id])
+
+  @@id([characterId, jutsuId])
+}
+
+model SkillProficiencyRecord {
+  characterId String
+  skill       String
+  proficiency SkillProficiency
+  character   Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, skill])
+}
+
+model SavingThrowProficiency {
+  characterId String
+  ability     String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, ability])
+}
+
+model CharacterDMData {
+  characterId       String    @id
+  notes             String    @default("")
+  secretInformation String    @default("")
+  updatedAt         DateTime  @updatedAt
+  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model CampaignSession {
+  id         String   @id @default(cuid())
+  campaignId String
+  role       String
+  expiresAt  DateTime
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}

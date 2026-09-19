@@ -1,0 +1,8 @@
+import { PrismaClient, JutsuRank } from "@prisma/client";
+const p = new PrismaClient();
+const natures = ["FIRE", "WATER", "WIND", "LIGHTNING", "EARTH"] as const;
+const names = ["Great Fireball Technique", "Phoenix Sage Fire Technique", "Water Bullet Technique", "Water Clone Technique", "Gale Palm", "Great Breakthrough", "Lightning Ball", "Electromagnetic Murder", "Earth Style Wall", "Hiding Like a Mole Technique"] as const;
+const slugs = ["great-fireball", "phoenix-fire", "water-bullet", "water-clone", "gale-palm", "great-breakthrough", "lightning-ball", "electromagnetic-murder", "earth-wall", "hiding-mole"] as const;
+const ranks: JutsuRank[] = [JutsuRank.C,JutsuRank.D,JutsuRank.C,JutsuRank.D,JutsuRank.D,JutsuRank.C,JutsuRank.C,JutsuRank.B,JutsuRank.C,JutsuRank.D];
+async function main(){const natureMap: Record<string,string>={}; for(const key of natures){const n=await p.chakraNature.upsert({where:{key},update:{displayName:key[0]+key.slice(1).toLowerCase(),description:`${key.toLowerCase()} chakra nature`},create:{key,displayName:key[0]+key.slice(1).toLowerCase(),description:`${key.toLowerCase()} chakra nature`}});natureMap[key]=n.id;} for(let i=0;i<names.length;i++){const nature=natures[Math.floor(i/2)];const j=await p.jutsu.upsert({where:{slug:slugs[i]},update:{name:names[i],rank:ranks[i],chakraCost:10+i*2},create:{slug:slugs[i],name:names[i],description:`A test ${ranks[i]}-rank ${nature.toLowerCase()} technique.`,rank:ranks[i],chakraCost:10+i*2,range:"60 ft",duration:"Instantaneous",actionType:"Action"}});await p.jutsuChakraNature.upsert({where:{jutsuId_chakraNatureId:{jutsuId:j.id,chakraNatureId:natureMap[nature]}},update:{},create:{jutsuId:j.id,chakraNatureId:natureMap[nature]}})}}
+main().finally(()=>p.$disconnect());
