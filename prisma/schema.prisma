@@ -47,6 +47,8 @@ model Campaign {
   description    String            @default("")
   dmCodeHash     String            @unique
   playerCodeHash String            @unique
+  dmCodeLookup   String?           @unique
+  playerCodeLookup String?         @unique
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   characters     Character[]

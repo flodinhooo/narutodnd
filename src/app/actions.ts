@@ -3,23 +3,24 @@ import { redirect } from "next/navigation";
 import { Reservoir } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { calculateMaxChakra, pointBuyTotal, validStandardArray } from "@/lib/rules";
-import { hashCode, makeCode, requireCampaign, setCreationHandoff, setSession } from "@/lib/session";
+import { accessCodeLookup, hashCode, makeCode, requireCampaign, resolveCampaignAccess, setCreationHandoff, setSession } from "@/lib/session";
 
 export async function createCampaign(fd: FormData) {
   const name = String(fd.get("name") || "").trim();
   if (!name) throw new Error("Campaign name is required");
   const dm = makeCode("DM"); const player = makeCode("P");
-  const campaign = await prisma.campaign.create({ data: { name, description: String(fd.get("description") || ""), dmCodeHash: hashCode(dm), playerCodeHash: hashCode(player) } });
+  const campaign = await prisma.campaign.create({ data: { name, description: String(fd.get("description") || ""), dmCodeHash: hashCode(dm), playerCodeHash: hashCode(player), dmCodeLookup: accessCodeLookup(dm), playerCodeLookup: accessCodeLookup(player) } });
   await setCreationHandoff(campaign.id,dm,player); redirect(`/campaign/${campaign.id}/access`);
 }
 export async function continueAsDm(campaignId:string){const handoff=await import("@/lib/session").then(x=>x.getCreationHandoff());if(!handoff||handoff.campaignId!==campaignId)throw new Error("Creation credentials expired");const campaign=await prisma.campaign.findUniqueOrThrow({where:{id:campaignId}});if(hashCode(handoff.dmCode)!==campaign.dmCodeHash)throw new Error("Creation credentials invalid");await setSession(campaignId,"DM");redirect(`/campaign/${campaignId}`);}
 export async function enterCampaign(fd: FormData) {
-  const id = String(fd.get("campaignId")); const code = String(fd.get("code")).trim();
-  const campaign = await prisma.campaign.findUnique({ where: { id } });
-  if (!campaign) throw new Error("Campaign not found");
-  const role = hashCode(code) === campaign.dmCodeHash ? "DM" : hashCode(code) === campaign.playerCodeHash ? "PLAYER" : null;
-  if (!role) throw new Error("Invalid access code");
-  await setSession(id, role); redirect(`/campaign/${id}`);
+  const code = String(fd.get("code") || "").trim();
+  if (!code) throw new Error("Ungültiger Zugangscode.");
+  const lookup = accessCodeLookup(code);
+  const campaign = await prisma.campaign.findFirst({ where: { OR: [{ dmCodeLookup: lookup }, { playerCodeLookup: lookup }] } });
+  const role = campaign ? resolveCampaignAccess(code, campaign) : null;
+  if (!campaign || !role) throw new Error("Ungültiger Zugangscode.");
+  await setSession(campaign.id, role); redirect(`/campaign/${campaign.id}`);
 }
 export async function createCharacter(campaignId: string, fd: FormData) {
   await requireCampaign(campaignId);

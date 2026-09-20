@@ -1,5 +1,14 @@
-import {cookies} from "next/headers"; import {createHash,randomBytes} from "crypto"; import {prisma} from "./prisma";
+import {cookies} from "next/headers"; import {createHash,createHmac,randomBytes,timingSafeEqual} from "crypto"; import {prisma} from "./prisma";
 export const hashCode=(v:string)=>createHash("sha256").update(v).digest("hex");
+const lookupSecret=()=>{const secret=process.env.CAMPAIGN_ACCESS_LOOKUP_SECRET;if(secret)return secret;if(process.env.NODE_ENV!=="production")return "local-development-only-campaign-access-lookup-secret";throw new Error("CAMPAIGN_ACCESS_LOOKUP_SECRET is required");};
+export const accessCodeLookup=(v:string)=>createHmac("sha256",lookupSecret()).update(v.trim()).digest("hex");
+export const verifyCode=(code:string,storedHash:string)=>{const actual=Buffer.from(hashCode(code.trim()),"hex");const expected=Buffer.from(storedHash,"hex");return actual.length===expected.length&&timingSafeEqual(actual,expected);};
+export function resolveCampaignAccess(code:string,campaign:{dmCodeLookup:string|null;playerCodeLookup:string|null;dmCodeHash:string;playerCodeHash:string}) {
+  const lookup=accessCodeLookup(code);
+  if(campaign.dmCodeLookup===lookup&&verifyCode(code,campaign.dmCodeHash))return "DM" as const;
+  if(campaign.playerCodeLookup===lookup&&verifyCode(code,campaign.playerCodeHash))return "PLAYER" as const;
+  return null;
+}
 export const makeCode=(prefix:string)=>`${prefix}-${randomBytes(3).toString("hex").toUpperCase()}`;
 export async function setSession(campaignId:string,role:"DM"|"PLAYER"){const id=randomBytes(32).toString("hex");await prisma.campaignSession.create({data:{id,campaignId,role,expiresAt:new Date(Date.now()+1000*60*60*24*7)}});(await cookies()).set("campaign_session",id,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:60*60*24*7});}
 export async function getSession(){const id=(await cookies()).get("campaign_session")?.value;if(!id)return null;const s=await prisma.campaignSession.findUnique({where:{id}});return s&&s.expiresAt>new Date()?s:null}
