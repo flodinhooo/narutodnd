@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/session";
+export default async function World({ params }: { params: Promise<{ campaignId: string }> }) { const { campaignId } = await params; const s = await getSession(); if (!s || s.campaignId !== campaignId) return <main className="shell"><h1>Unauthorized</h1></main>; const locations = await prisma.location.findMany({ where: { campaignId, ...(s.role === "PLAYER" ? { playerVisible: true } : {}) }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }); return <main className="shell"><div className="eyebrow">KAMPAGNE / WELT</div><h1>Welt</h1><div className="grid">{locations.map(x => <Link className="panel character-card" href={`/campaign/${campaignId}/world/${x.slug}`} key={x.id}><span className="tag">{x.type}</span><h3>{x.name}</h3><p className="muted">{x.shortDescription}</p></Link>)}</div></main>; }
