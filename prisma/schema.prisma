@@ -41,6 +41,38 @@ enum JutsuRank {
   S
 }
 
+enum JutsuLibraryAccess {
+  CLOSED
+  OPEN
+}
+enum JutsuOrigin {
+  CANON
+  SHIO_HOMEBREW
+  FOUNDATION
+  DM_CUSTOM
+}
+enum JutsuPool {
+  ELEMENTAL
+  CANON
+  FOUNDATION
+  UZUMAKI
+  CHARACTER_SIGNATURE
+}
+enum GameSessionStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+enum LocationType {
+  COUNTRY
+  CITY
+  VILLAGE
+  DISTRICT
+  BUILDING
+  LANDMARK
+  OTHER
+}
+
 model Campaign {
   id             String            @id @default(cuid())
   name           String
@@ -52,7 +84,11 @@ model Campaign {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   characters     Character[]
-  sessions       CampaignSession[]
+  sessions       CampaignAccessSession[]
+  gameSessions   GameSession[]
+  locations      Location[]
+  jutsuLibraryAccess JutsuLibraryAccess @default(CLOSED)
+  customJutsu Jutsu[]
 }
 
 model ChakraNature {
@@ -121,7 +157,7 @@ model CharacterChakraNature {
 
 model Jutsu {
   id                    String              @id @default(cuid())
-  slug                  String              @unique
+  slug                  String
   name                  String
   japaneseName          String?
   description           String
@@ -135,10 +171,32 @@ model Jutsu {
   damageType            String?
   saveAbility           String?
   requiresConcentration Boolean             @default(false)
+  origin                JutsuOrigin         @default(SHIO_HOMEBREW)
+  pool                  JutsuPool           @default(ELEMENTAL)
+  campaignId            String?
+  campaign              Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  category              String?
+  progressionType       String?
+  traditionProvenance   String?
+  prerequisiteText      String?
+  requiredNatureKeys    String?
   natures               JutsuChakraNature[]
   characterLinks        CharacterJutsu[]
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
+  prerequisites         JutsuPrerequisite[] @relation("JutsuPrerequisites")
+  unlocks               JutsuPrerequisite[] @relation("JutsuUnlocks")
+  @@unique([campaignId, slug])
+  @@index([origin, pool])
+  @@index([campaignId])
+}
+
+model JutsuPrerequisite {
+  jutsuId             String
+  prerequisiteJutsuId String
+  jutsu               Jutsu @relation("JutsuPrerequisites", fields: [jutsuId], references: [id], onDelete: Cascade)
+  prerequisiteJutsu  Jutsu @relation("JutsuUnlocks", fields: [prerequisiteJutsuId], references: [id], onDelete: Cascade)
+  @@id([jutsuId, prerequisiteJutsuId])
 }
 
 model JutsuChakraNature {
@@ -187,7 +245,7 @@ model CharacterDMData {
   character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 }
 
-model CampaignSession {
+model CampaignAccessSession {
   id         String   @id @default(cuid())
   campaignId String
   role       String
@@ -195,4 +253,43 @@ model CampaignSession {
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
+}
+
+model GameSession {
+  id String @id @default(cuid())
+  campaignId String
+  number Int
+  title String
+  summary String @default("")
+  dmNotes String @default("")
+  playerNotes String @default("")
+  scheduledAt DateTime?
+  startedAt DateTime?
+  endedAt DateTime?
+  status GameSessionStatus @default(PLANNED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  @@unique([campaignId, number])
+  @@index([campaignId, status])
+}
+
+model Location {
+  id String @id @default(cuid())
+  campaignId String
+  parentId String?
+  slug String
+  name String
+  type LocationType @default(OTHER)
+  shortDescription String @default("")
+  description String @default("")
+  playerVisible Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  parent Location? @relation("LocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Location[] @relation("LocationTree")
+  @@unique([campaignId, slug])
+  @@index([campaignId, playerVisible])
 }
