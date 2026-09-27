@@ -4,7 +4,7 @@ export const skills={Acrobatics:"DEX", "Animal Handling":"WIS",Arcana:"INT",Athl
 export const getAbilityModifier=(score:number)=>Math.floor((score-10)/2);
 export const getProficiencyBonus=(level:number)=>level<5?2:level<9?3:level<13?4:level<17?5:6;
 export const reservoirMultipliers={VERY_LOW:.5,LOW:.75,AVERAGE:1,HIGH:1.2,VERY_HIGH:1.5,EXCEPTIONAL:1.75,MONSTER:2} as const;
-export function calculateMaxChakra(level:number,con:number,wis:number,reservoir:keyof typeof reservoirMultipliers|"SPECIAL",custom=1){const base=150+level*(20+getAbilityModifier(con)*2+getAbilityModifier(wis)*2); return Math.round(base*(reservoir==="SPECIAL"?custom:reservoirMultipliers[reservoir])/5)*5}
+export function calculateMaxChakra(level:number,con:number,wis:number,reservoir:keyof typeof reservoirMultipliers|"SPECIAL",custom=1){const normalized=String(reservoir).toUpperCase().replaceAll(" ","_") as keyof typeof reservoirMultipliers|"SPECIAL";const multiplier=normalized==="SPECIAL"?(Number.isFinite(custom)&&custom>0?custom:1):reservoirMultipliers[normalized]??reservoirMultipliers.AVERAGE;const safeLevel=Number.isFinite(level)?level:1;const safeCon=Number.isFinite(con)?con:10;const safeWis=Number.isFinite(wis)?wis:10;const base=150+safeLevel*(20+getAbilityModifier(safeCon)*2+getAbilityModifier(safeWis)*2);return Math.round(base*multiplier/5)*5}
 export function preserveChakra(old:number,oldMax:number,newMax:number){return old>=oldMax?newMax:Math.min(old,newMax)}
 export const regenPercent={NOVICE:.1,TRAINED:.15,ADVANCED:.2,EXPERT:.25,MASTER:.35} as const;
 export const calculateShortRestChakraRecovery=(max:number,rank:keyof typeof regenPercent)=>Math.round(max*regenPercent[rank]/5)*5;

@@ -159,6 +159,7 @@ model Jutsu {
   id                    String              @id @default(cuid())
   slug                  String
   name                  String
+  germanName            String?
   japaneseName          String?
   description           String
   rank                  JutsuRank
