@@ -2,6 +2,13 @@ export type Ability = "STR"|"DEX"|"CON"|"INT"|"WIS"|"CHA";
 export const abilities: Ability[]=["STR","DEX","CON","INT","WIS","CHA"];
 export const skills={Acrobatics:"DEX", "Animal Handling":"WIS",Arcana:"INT",Athletics:"STR",Deception:"CHA",History:"INT",Insight:"WIS",Intimidation:"CHA",Investigation:"INT",Medicine:"WIS",Nature:"INT",Perception:"WIS",Performance:"CHA",Persuasion:"CHA",Religion:"INT","Sleight of Hand":"DEX",Stealth:"DEX",Survival:"WIS"} as const;
 export const getAbilityModifier=(score:number)=>Math.floor((score-10)/2);
+export const calculateMaxHp=(level:number,constitution:number)=>{
+ const safeLevel=Number.isFinite(level)?Math.max(1,Math.floor(level)):1;
+ const conModifier=getAbilityModifier(Number.isFinite(constitution)?constitution:10);
+ return 10+(safeLevel-1)*6+safeLevel*conModifier;
+};
+export const calculateBaseArmorClass=(dexterity:number)=>12+getAbilityModifier(dexterity);
+export const calculateInitiativeBonus=(dexterity:number)=>getAbilityModifier(dexterity);
 export const getProficiencyBonus=(level:number)=>level<5?2:level<9?3:level<13?4:level<17?5:6;
 export const reservoirMultipliers={VERY_LOW:.5,LOW:.75,AVERAGE:1,HIGH:1.2,VERY_HIGH:1.5,EXCEPTIONAL:1.75,MONSTER:2} as const;
 export function calculateMaxChakra(level:number,con:number,wis:number,reservoir:keyof typeof reservoirMultipliers|"SPECIAL",custom=1){const normalized=String(reservoir).toUpperCase().replaceAll(" ","_") as keyof typeof reservoirMultipliers|"SPECIAL";const multiplier=normalized==="SPECIAL"?(Number.isFinite(custom)&&custom>0?custom:1):reservoirMultipliers[normalized]??reservoirMultipliers.AVERAGE;const safeLevel=Number.isFinite(level)?level:1;const safeCon=Number.isFinite(con)?con:10;const safeWis=Number.isFinite(wis)?wis:10;const base=150+safeLevel*(20+getAbilityModifier(safeCon)*2+getAbilityModifier(safeWis)*2);return Math.round(base*multiplier/5)*5}
@@ -11,7 +18,10 @@ export const calculateShortRestChakraRecovery=(max:number,rank:keyof typeof rege
 export function getChakraExhaustionState(current:number,max:number){if(max<=0||current===0)return {key:"CHAKRA_EMPTY",modifier:-3}; const pct=current/max*100;if(pct<=10)return {key:"CRITICALLY_EXHAUSTED",modifier:-2};if(pct<=25)return {key:"EXHAUSTED",modifier:-1};if(pct<=50)return {key:"STRAINED",modifier:0};return {key:"NORMAL",modifier:0}}
 export const getDeathSaveMode=(current:number,max:number)=>current===0?"DISADVANTAGE":current/max>.33?"ADVANTAGE":"NORMAL";
 export const getLimitBreakHpCost=(rank:string)=>({D:5,C:10,B:20,A:35,S:50}[rank]??0);
-export const effectiveAc=(dex:number,override?:number|null)=>override??10+getAbilityModifier(dex);
+export const effectiveAc=(dex:number,override?:number|null)=>override??calculateBaseArmorClass(dex);
+export const calculateArmorClass=effectiveAc;
+export const effectiveInitiative=(dexterity:number,override?:number|null)=>override??calculateInitiativeBonus(dexterity);
+export const preserveHpDamage=(currentHp:number,oldMaxHp:number,newMaxHp:number)=>clamp(newMaxHp-(Math.max(0,oldMaxHp-currentHp)),0,newMaxHp);
 export const skillModifier=(score:number,level:number,proficiency:"NONE"|"PROFICIENT"|"EXPERTISE")=>getAbilityModifier(score)+(proficiency==="PROFICIENT"?getProficiencyBonus(level):proficiency==="EXPERTISE"?getProficiencyBonus(level)*2:0);
 export const savingThrowModifier=skillModifier;
 export const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,value));

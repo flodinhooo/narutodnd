@@ -115,6 +115,7 @@ model Character {
   currentHp                 Int                      @default(10)
   hitDie                    String                   @default("d10")
   acOverride                Int?
+  initiativeOverride        Int?
   str                       Int                      @default(10)
   dex                       Int                      @default(10)
   con                       Int                      @default(10)

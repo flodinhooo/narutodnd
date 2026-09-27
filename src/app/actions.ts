@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { Reservoir } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calculateMaxChakra, pointBuyTotal, validStandardArray } from "@/lib/rules";
+import { calculateMaxChakra, calculateMaxHp, pointBuyTotal, validStandardArray } from "@/lib/rules";
 import { accessCodeLookup, hashCode, makeCode, requireCampaign, resolveCampaignAccess, setCreationHandoff, setSession } from "@/lib/session";
 
 export async function createCampaign(fd: FormData) {
@@ -38,7 +38,7 @@ export async function createCharacter(campaignId: string, fd: FormData) {
   if(!savingThrows.every(x=>keys.map(k=>k.toUpperCase()).includes(x)))throw new Error("Invalid saving throw");
   const name=String(fd.get("name")||"").trim(); if(!name||name.length>100)throw new Error("Character name is required");
   if(!Number.isInteger(level)||level<1||level>20)throw new Error("Level must be between 1 and 20");
-  const speed=Number(fd.get("speed")||30), maxHp=10; if(!Number.isInteger(speed)||speed<0)throw new Error("Invalid combat values");
+  const speed=Number(fd.get("speed")||30), maxHp=calculateMaxHp(level,con); if(!Number.isInteger(speed)||speed<0)throw new Error("Invalid combat values");
   const selected=await prisma.jutsu.findMany({where:{id:{in:jutsu},rank:{not:"S"}},include:{natures:true}}); if(selected.length!==new Set(jutsu).size||jutsu.length>2||selected.some(x=>!x.natures.some(n=>n.chakraNatureId===chakraNature.id)))throw new Error("Invalid starting Jutsu selection");
   await prisma.$transaction(async tx => { const character = await tx.character.create({ data: { campaignId, name, level, background:String(fd.get("background")||""),alignment:String(fd.get("alignment")||""),description:String(fd.get("description")||""),speed,maxHp,currentHp:maxHp,acOverride:null, currentChakra: max, reservoir, ...Object.fromEntries(keys.map(key => [key, Number(fd.get(key) || 10)])), natureLinks: { create: { chakraNatureId: chakraNature.id, isPrimary: true } }, dmData: { create: {} }, savingThrows: { create: savingThrows.map(ability => ({ ability })) }, skills: { create: startingSkills.map(skill => ({ skill, proficiency: "PROFICIENT" })) } } }); if (jutsu.length) await tx.characterJutsu.createMany({ data: jutsu.map(jutsuId => ({ characterId: character.id, jutsuId })) }); });
   redirect(`/campaign/${campaignId}`);
