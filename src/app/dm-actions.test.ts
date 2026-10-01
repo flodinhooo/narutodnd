@@ -1,11 +1,11 @@
 import {beforeEach, expect, it, vi} from "vitest";
-const {prisma,requireCampaign}=vi.hoisted(()=>({requireCampaign:vi.fn(),prisma:{character:{findFirst:vi.fn(),update:vi.fn()}}}));
+const {prisma,requireCampaign}=vi.hoisted(()=>({requireCampaign:vi.fn(),prisma:{character:{findFirst:vi.fn(),update:vi.fn()},$transaction:vi.fn()}}));
 vi.mock("@/lib/session",()=>({requireCampaign}));
 vi.mock("@/lib/prisma",()=>({prisma}));
 vi.mock("@/lib/rules",async()=>await import("../lib/rules"));
 import {updateCharacter} from "./dm-actions";
-const old={id:"character",name:"Shinobi",level:1,str:10,dex:10,con:13,int:10,wis:10,cha:10,speed:30,maxHp:19,currentHp:15,currentChakra:170,reservoir:"AVERAGE",regenRank:"TRAINED",controlRank:"TRAINED",breakthroughPoints:0,acOverride:18,customReservoirMultiplier:null};
-beforeEach(()=>{vi.clearAllMocks();prisma.character.findFirst.mockResolvedValue(old);});
+const old={id:"character",name:"Shinobi",level:1,hitDie:"d10",hpLegacyLevel:null,hpLegacyBase:null,hpOverrideOffset:8,hpLevels:Array.from({length:4},(_,i)=>({level:i+2,hitDie:"d10",rawRoll:6,effectiveRoll:6})),str:10,dex:10,con:13,int:10,wis:10,cha:10,speed:30,maxHp:19,currentHp:15,currentChakra:170,reservoir:"AVERAGE",regenRank:"TRAINED",controlRank:"TRAINED",breakthroughPoints:0,acOverride:18,customReservoirMultiplier:null};
+beforeEach(()=>{vi.clearAllMocks();prisma.character.findFirst.mockResolvedValue(old);prisma.$transaction.mockImplementation(fn=>fn(prisma));});
 it("preserves DM maximum HP and unrelated fields for chakra form",async()=>{const fd=new FormData();fd.set("currentChakra","50");await updateCharacter("campaign","character",fd);expect(requireCampaign).toHaveBeenCalledWith("campaign",true);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({name:"Shinobi",maxHp:19,currentHp:15,currentChakra:50,acOverride:18,str:10})}));});
 it("honors explicit DM HP override and preserves damage",async()=>{const fd=new FormData();fd.set("maxHp","25");fd.set("con","14");await updateCharacter("campaign","character",fd);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({maxHp:25,currentHp:21,con:14,currentChakra:175})}));});
-it("keeps HP overrides when ability or level changes",async()=>{const fd=new FormData();fd.set("level","5");fd.set("con","14");await updateCharacter("campaign","character",fd);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({maxHp:19,currentHp:15,level:5,con:14})}));});
+it("keeps HP overrides when ability or level changes",async()=>{const fd=new FormData();fd.set("level","5");fd.set("con","14");await updateCharacter("campaign","character",fd);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({maxHp:52,currentHp:48,hpOverrideOffset:8,level:5,con:14})}));});
