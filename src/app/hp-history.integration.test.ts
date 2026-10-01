@@ -4,17 +4,24 @@ import {mkdtemp, readFile, readdir, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {basename, join, resolve, sep} from "node:path";
 import {calculateMaxHp, getEffectiveHpRoll} from "../lib/rules";
+import {basicNatureKeys, chakraNatureNames, chakraNatureSeed} from "../../seeding/chakra-natures";
+import {HomebrewElementalJutsu} from "../../seeding/jutsu-homebrew-elemental.generated";
+import {natureUnavailableMessage, jutsuUnavailableMessage} from "../lib/character-creation";
 
-const {requireCampaign, revalidatePath, database} = vi.hoisted(() => ({requireCampaign:vi.fn(),revalidatePath:vi.fn(),database:{client:null as unknown as PrismaClient}}));
-vi.mock("@/lib/session", () => ({requireCampaign}));
+const {requireCampaign, getSession, revalidatePath, database} = vi.hoisted(() => ({requireCampaign:vi.fn(),getSession:vi.fn(),revalidatePath:vi.fn(),database:{client:null as unknown as PrismaClient}}));
+vi.mock("@/lib/session", () => ({requireCampaign,getSession}));
 vi.mock("next/cache", () => ({revalidatePath}));
 vi.mock("@/lib/prisma", () => ({get prisma(){return database.client;}}));
 import {confirmHpLevelUp, previewAutomaticHpRoll} from "./hp-actions";
 import {updateCharacter} from "./dm-actions";
+import {createCharacter} from "./actions";
+import NewCharacter from "./campaign/[campaignId]/characters/new/page";
 
 let directory: string;
 let campaignId: string;
 let legacySnapshot: unknown;
+let specialAssignments: unknown;
+let globalFire: string, mixedSpecial: string, foreignJutsu: string, sRankJutsu: string;
 const form = (data: Record<string,string>) => {const fd=new FormData();for(const [key,value] of Object.entries(data))fd.set(key,value);return fd;};
 const levelForm = (level: number, rawRoll="6") => form({level:String(level),mode:"MANUAL",rawRoll});
 const makeCharacter = (extra: Partial<Prisma.CharacterUncheckedCreateInput> = {}) => database.client.character.create({data:{campaignId,name:"Test Shinobi",con:14,maxHp:12,currentHp:4,...extra}});
@@ -31,13 +38,30 @@ beforeAll(async () => {
     await database.client.$executeRawUnsafe(`INSERT INTO "Character" (id,campaignId,name,level,con,maxHp,currentHp,updatedAt) VALUES (?,?,?,?,?,?,?,?)`,id,"legacy-campaign",id,5,con,maxHp,currentHp,1700000000000);
    legacySnapshot=await database.client.$queryRawUnsafe('SELECT id,level,con,maxHp,currentHp FROM Character ORDER BY id');
   }
+  if(name==="20261001140000_creator_nature_visibility"){
+   for(const key of Object.keys(chakraNatureNames)){
+    const seed=chakraNatureSeed(key);
+    await database.client.$executeRawUnsafe('INSERT INTO ChakraNature (id,key,displayName,description) VALUES (?,?,?,?)',`nature-${key}`,key,seed.displayName,seed.description);
+   }
+   await database.client.$executeRawUnsafe("INSERT INTO CharacterChakraNature (characterId,chakraNatureId,isPrimary) VALUES ('legacy','nature-IRON_RELEASE',1)");
+   specialAssignments=await database.client.$queryRawUnsafe('SELECT * FROM CharacterChakraNature');
+  }
   const sql=(await readFile(join(root,name,"migration.sql"),"utf8")).replace(/^\s*--.*$/gm,"");
   for(const statement of sql.split(";").map(s=>s.trim()).filter(Boolean)) await database.client.$executeRawUnsafe(statement);
  }
  const campaign=await database.client.campaign.create({data:{name:"HP Tests",dmCodeHash:"test-dm",playerCodeHash:"test-player"}});
  campaignId=campaign.id;
+ const record=HomebrewElementalJutsu.find(r=>r.natures.length===1&&r.natures[0]==="FIRE"&&r.rank!=="S"&&(r.requiredNatures??[]).every(key=>key==="FIRE"));
+ if(!record)throw new Error("Seed must contain an eligible basic Fire jutsu");
+ const data={name:record.name,germanName:record.germanName,slug:record.slug,description:record.description||record.rawMarkdown,rank:record.rank??"E",chakraCost:record.chakraCost??0,range:record.range||"Self",duration:record.duration||"Instantaneous",actionType:record.actionType||"Action",requiredNatureKeys:JSON.stringify(record.requiredNatures??[])};
+ const fireLink={create:{chakraNatureId:"nature-FIRE"}};
+ globalFire=(await database.client.jutsu.create({data:{...data,natures:fireLink}})).id;
+ mixedSpecial=(await database.client.jutsu.create({data:{...data,slug:"mixed-special",natures:{create:[{chakraNatureId:"nature-FIRE"},{chakraNatureId:"nature-IRON_RELEASE"}]}}})).id;
+ const other=await database.client.campaign.create({data:{name:"Other",dmCodeHash:"other-dm",playerCodeHash:"other-player"}});
+ foreignJutsu=(await database.client.jutsu.create({data:{...data,campaignId:other.id,origin:"DM_CUSTOM",natures:fireLink}})).id;
+ sRankJutsu=(await database.client.jutsu.create({data:{...data,slug:"s-rank",rank:"S",natures:fireLink}})).id;
 },30000);
-beforeEach(()=>{vi.clearAllMocks();requireCampaign.mockResolvedValue({id:"test-session",campaignId,role:"DM"});});
+beforeEach(()=>{vi.clearAllMocks();requireCampaign.mockResolvedValue({id:"test-session",campaignId,role:"DM"});getSession.mockResolvedValue({id:"test-session",campaignId,role:"PLAYER"});});
 afterAll(async()=>{
  await database.client?.$disconnect();
  if(directory){
@@ -45,6 +69,47 @@ afterAll(async()=>{
   if(!target.startsWith(resolve(tmpdir())+sep)||!basename(target).startsWith("narutodnd-hp-tests-"))throw new Error("Unexpected test cleanup target");
   await rm(target,{recursive:true,force:true});
  }
+});
+
+describe("safe character creation with actual seed values and SQLite",()=>{
+ const creatorForm=()=>form({name:"Creator regression",level:"1",hitDie:"d8",hitDieAbilityBonus:"CON",mode:"MANUAL",str:"10",dex:"10",con:"13",int:"10",wis:"10",cha:"10",speed:"30",reservoir:"AVERAGE",nature:"FIRE"});
+ it("migration exposes only five basics and preserves existing special assignments",async()=>{
+  const selectable=await database.client.chakraNature.findMany({where:{playerSelectable:true}});expect(selectable.map(n=>n.key).sort()).toEqual([...basicNatureKeys].sort());
+  expect(await database.client.$queryRawUnsafe('SELECT * FROM CharacterChakraNature WHERE characterId=\'legacy\'')).toEqual(specialAssignments);
+  expect((await database.client.chakraNature.create({data:{key:"FUTURE_SPECIAL",displayName:"Future",description:"Special"}})).playerSelectable).toBe(false);
+ });
+ it("the real Creator loader hides special natures, foreign jutsu and S ranks",async()=>{
+  const page=await NewCharacter({params:Promise.resolve({campaignId})});
+  expect(page.props.natures.map((n:{key:string})=>n.key).sort()).toEqual([...basicNatureKeys].sort());
+  expect(page.props.jutsu.map((j:{id:string})=>j.id)).toContain(globalFire);
+  for(const id of [mixedSpecial,foreignJutsu,sRankJutsu])expect(page.props.jutsu.map((j:{id:string})=>j.id)).not.toContain(id);
+ });
+ it.each(["NIKKOTON","IRON_RELEASE"])("controlled rejection of %s creates no character",async key=>{
+  const nature=await database.client.chakraNature.findUniqueOrThrow({where:{key}});const count=await database.client.character.count();
+  const fd=creatorForm();fd.set("nature",nature.key);await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:false,code:"NATURE",message:natureUnavailableMessage});
+  fd.delete("nature");fd.set("chakraNatureId",nature.id);await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:false,code:"NATURE"});
+  expect(await database.client.character.count()).toBe(count);
+ });
+ it("rejects unknown or contradictory manipulated nature IDs",async()=>{
+  const count=await database.client.character.count(),fd=creatorForm();fd.set("chakraNatureId","nonexistent");
+  await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:false,code:"NATURE"});
+  fd.set("chakraNatureId","nature-WATER");await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:false,code:"NATURE"});expect(await database.client.character.count()).toBe(count);
+ });
+ it.each(basicNatureKeys)("creates a valid character with basic nature %s",async key=>{
+  const fd=creatorForm();fd.set("nature",key);await expect(createCharacter(campaignId,fd)).resolves.toEqual({ok:true,destination:`/campaign/${campaignId}`});
+  const c=await database.client.character.findFirstOrThrow({where:{campaignId,name:"Creator regression",natureLinks:{some:{nature:{key}}}},include:{natureLinks:true}});expect(c.con).toBe(14);expect(c.maxHp).toBe(10);expect(c.natureLinks).toHaveLength(1);
+ });
+ it("creates an allowed starting jutsu from real seed data",async()=>{
+  const fd=creatorForm();fd.set("jutsu",globalFire);const before=await database.client.characterJutsu.count();
+  await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:true});expect(await database.client.characterJutsu.count()).toBe(before+1);
+ });
+ it.each(["unknown","special","foreign","s-rank"])("rejects %s jutsu atomically",async kind=>{
+  const fd=creatorForm();fd.set("jutsu",kind==="special"?mixedSpecial:kind==="foreign"?foreignJutsu:kind==="s-rank"?sRankJutsu:"not-a-jutsu");const before=await database.client.character.count();
+  await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:false,code:"JUTSU",message:jutsuUnavailableMessage});expect(await database.client.character.count()).toBe(before);
+ });
+ it("rejects the original display-label enum crash before Prisma persistence",async()=>{
+  const fd=creatorForm();fd.set("reservoir","Very Low");const before=await database.client.character.count();await expect(createCharacter(campaignId,fd)).resolves.toMatchObject({ok:false,code:"CHAKRA"});expect(await database.client.character.count()).toBe(before);
+ });
 });
 
 describe("HP history migrations and real server actions",()=>{
