@@ -10,3 +10,21 @@
 .hit-die-card{display:flex;flex-direction:column;gap:12px;padding:20px;text-align:left;background:var(--panel);color:var(--ink);border:2px solid var(--line);border-radius:8px;cursor:pointer}.hit-die-card.selected{border-color:var(--accent);background:#32221e}.hit-die-card small{line-height:1.5;color:var(--muted)}.button:disabled{opacity:.5;cursor:not-allowed}
 
 .hp-history{padding:18px;margin-top:16px}.hp-history summary{cursor:pointer;font-weight:700}.hp-history li{margin:8px 0}
+
+/* Creator controls differ from the compact Character Sheet stats. */
+.creator-form,.creator-form>*{min-width:0}
+.creator-form input,.creator-form select,.creator-form textarea{min-width:0;max-width:100%;width:100%}
+.creator-form input[type=checkbox]{width:auto;flex-shrink:0}
+.creator-attribute-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.creator-attribute-card{display:grid;align-content:start;gap:10px;min-width:0;padding:16px;background:#101212;border:1px solid var(--line);border-radius:6px;overflow-wrap:anywhere}
+.creator-attribute-card small{display:block;color:var(--muted);line-height:1.5}
+.score-heading{display:grid;gap:4px}.score-heading strong{color:var(--gold)}
+.score-buttons{display:grid;grid-template-columns:38px minmax(0,1fr) 38px;align-items:center;gap:12px;text-align:center}
+.score-buttons button{height:38px;min-width:0;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:5px;cursor:pointer;font-size:20px}
+.score-buttons button:disabled{opacity:.4;cursor:not-allowed}.score-buttons b{font-size:24px}
+.creator .talent-bonus .selected{border:2px solid var(--accent);background:#513026;color:var(--ink);font-weight:700}
+.creator .check span{min-width:0;overflow-wrap:anywhere}
+.creator .review-grid>span{display:grid;min-width:0;overflow-wrap:anywhere}.creator .review-grid strong{text-align:left}
+.creator .section-heading{flex-wrap:wrap}.creator .hit-die-card{min-width:0;overflow-wrap:anywhere}
+@media(max-width:900px){.creator-attribute-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.creator-attribute-grid{grid-template-columns:minmax(0,1fr)}.creator .two{grid-template-columns:minmax(0,1fr)}}

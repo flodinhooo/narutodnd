@@ -1,8 +1,9 @@
 ﻿"use server";
 import { redirect } from "next/navigation";
-import { Reservoir } from "@prisma/client";
+import { Reservoir, RegenRank, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calculateMaxChakra, calculateMaxHp, getCreationAbilityScores, getEffectiveHpRoll, validateCharacterLevel, type AbilityScores } from "@/lib/rules";
+import { calculateMaxChakra, calculateMaxHp, getCreationAbilityScores, getEffectiveHpRoll, validateCharacterLevel, validStartingSkills, skills, type AbilityScores } from "@/lib/rules";
+import {creationFailureMessage, creationRuleMessage, isStartingJutsuAllowed, jutsuUnavailableMessage, natureUnavailableMessage, type CharacterCreationResult} from "@/lib/character-creation";
 import {rollHitDie} from "@/lib/hp-roll";
 import { accessCodeLookup, hashCode, makeCode, requireCampaign, resolveCampaignAccess, setCreationHandoff, setSession } from "@/lib/session";
 
@@ -23,34 +24,78 @@ export async function enterCampaign(fd: FormData) {
   if (!campaign || !role) throw new Error("Ungültiger Zugangscode.");
   await setSession(campaign.id, role); redirect(`/campaign/${campaign.id}`);
 }
-export async function createCharacter(campaignId: string, fd: FormData) {
-  await requireCampaign(campaignId);
-  const keys = ["str", "dex", "con", "int", "wis", "cha"];
-  const level = Number(fd.get("level") || 1);
-  const hitDie = fd.get("hitDie");
-  const bonuses = fd.getAll("hitDieAbilityBonus");
-  if (bonuses.length > 1) throw new Error("Choose exactly one ability bonus");
-  const hitDieAbilityBonus = bonuses[0] ?? null;
-  const scores = getCreationAbilityScores(String(fd.get("mode") || ""), Object.fromEntries(keys.map(key => [key, fd.has(key) ? Number(fd.get(key)) : NaN])) as AbilityScores, hitDie, hitDieAbilityBonus);
-  const {con, wis} = scores;
-  validateCharacterLevel(level);
-  const hpLevels = Array.from({length: level - 1}, (_, index) => {
-    const hpLevel = index + 2;
-    const mode = fd.get(`hpRollMode${hpLevel}`);
-    if (mode !== "AUTO" && mode !== "MANUAL") throw new Error(`Choose an HP roll for level ${hpLevel}`);
-    const rawRoll = mode === "AUTO" ? rollHitDie(String(hitDie)) : Number(fd.get(`hpRawRoll${hpLevel}`));
-    return {level: hpLevel, hitDie: String(hitDie), rawRoll, effectiveRoll: getEffectiveHpRoll(hitDie, rawRoll)};
-  });
-  const nature = String(fd.get("nature")); const reservoir = String(fd.get("reservoir") || "AVERAGE") as keyof typeof Reservoir;
-  const max = calculateMaxChakra(level, con, wis, reservoir, Number(fd.get("custom") || 1));
-  const jutsu = fd.getAll("jutsu").map(String); const savingThrows = fd.getAll("savingThrow").map(String); const startingSkills = fd.getAll("skill").map(String); const chakraNature = await prisma.chakraNature.findUniqueOrThrow({ where: { key: nature } });
-  if(startingSkills.length>3||new Set(startingSkills).size!==startingSkills.length)throw new Error("Choose up to 3 unique starting skills");
-  if(!savingThrows.every(x=>keys.map(k=>k.toUpperCase()).includes(x)))throw new Error("Invalid saving throw");
-  const name=String(fd.get("name")||"").trim(); if(!name||name.length>100)throw new Error("Character name is required");
-  if(!Number.isInteger(level)||level<1||level>20)throw new Error("Level must be between 1 and 20");
-  const speed=Number(fd.get("speed")||30), maxHp=calculateMaxHp(level,con,String(hitDie),hpLevels); if(!Number.isInteger(speed)||speed<0)throw new Error("Invalid combat values");
-  const selected=await prisma.jutsu.findMany({where:{id:{in:jutsu},rank:{not:"S"}},include:{natures:true}}); if(selected.length!==new Set(jutsu).size||jutsu.length>2||selected.some(x=>!x.natures.some(n=>n.chakraNatureId===chakraNature.id)))throw new Error("Invalid starting Jutsu selection");
-  await prisma.$transaction(async tx => { const character = await tx.character.create({ data: { campaignId, name, level, background:String(fd.get("background")||""),alignment:String(fd.get("alignment")||""),description:String(fd.get("description")||""),speed,hpLevels:{create:hpLevels},hitDie:String(hitDie),hitDieAbilityBonus:hitDieAbilityBonus as string|null,maxHp,currentHp:maxHp,acOverride:null, currentChakra: max, reservoir, ...scores, natureLinks: { create: { chakraNatureId: chakraNature.id, isPrimary: true } }, dmData: { create: {} }, savingThrows: { create: savingThrows.map(ability => ({ ability })) }, skills: { create: startingSkills.map(skill => ({ skill, proficiency: "PROFICIENT" })) } } }); if (jutsu.length) await tx.characterJutsu.createMany({ data: jutsu.map(jutsuId => ({ characterId: character.id, jutsuId })) }); });
-  redirect(`/campaign/${campaignId}`);
+class CreationValidationError extends Error {
+ constructor(public code: string, message: string, public field?: string) {super(message);}
 }
-
+const creationText = (fd: FormData, key: string, fallback = "") => {
+ const values = fd.getAll(key);
+ if (values.length > 1 || (values[0] != null && typeof values[0] !== "string")) throw new CreationValidationError("INVALID_FORM", creationFailureMessage, key);
+ return values[0] == null ? fallback : String(values[0]);
+};
+export async function createCharacter(campaignId: string, fd: FormData): Promise<CharacterCreationResult> {
+ try {
+  try {await requireCampaign(campaignId);} catch (error) {
+   if (error instanceof Error && error.message === "Unauthorized") throw new CreationValidationError("ACCESS", "Dein Kampagnenzugang ist abgelaufen. Bitte melde dich erneut an.");
+   throw error;
+  }
+  const keys = ["str", "dex", "con", "int", "wis", "cha"];
+  const level = Number(creationText(fd, "level"));
+  try {validateCharacterLevel(level);} catch {throw new CreationValidationError("LEVEL", "Die Stufe muss eine ganze Zahl zwischen 1 und 20 sein.", "level");}
+  const hitDie = creationText(fd, "hitDie");
+  const bonuses = fd.getAll("hitDieAbilityBonus");
+  if (bonuses.length > 1) throw new CreationValidationError("ABILITY", "Wähle genau ein Attribut für deinen +1-Talentbonus.", "attributes");
+  const hitDieAbilityBonus = bonuses[0] ?? null;
+  let scores: AbilityScores;
+  try {scores = getCreationAbilityScores(creationText(fd, "mode"), Object.fromEntries(keys.map(key => [key, Number(creationText(fd, key, "NaN"))])) as AbilityScores, hitDie, hitDieAbilityBonus);}
+  catch (error) {if (error instanceof CreationValidationError) throw error;throw new CreationValidationError("ABILITY", creationRuleMessage(error), "attributes");}
+  const {con, wis} = scores;
+  const hpLevels = Array.from({length: level - 1}, (_, index) => {
+   const hpLevel = index + 2;
+   const mode = creationText(fd, `hpRollMode${hpLevel}`);
+   if (mode !== "AUTO" && mode !== "MANUAL") throw new CreationValidationError("HP", `Bitte bestimme den HP-Wurf für Level ${hpLevel}.`, "combat");
+   const rawRoll = mode === "AUTO" ? rollHitDie(hitDie) : Number(creationText(fd, `hpRawRoll${hpLevel}`));
+   let effectiveRoll: number;
+   try {effectiveRoll = getEffectiveHpRoll(hitDie, rawRoll);} catch {throw new CreationValidationError("HP", `Der HP-Wurf für Level ${hpLevel} muss eine ganze Zahl zwischen 1 und ${hitDie === "d8" ? 8 : 10} sein.`, "combat");}
+   return {level: hpLevel, hitDie, rawRoll, effectiveRoll};
+  });
+  const name = creationText(fd, "name").trim();
+  if (!name || name.length > 100) throw new CreationValidationError("NAME", "Gib einen Namen mit höchstens 100 Zeichen ein.", "name");
+  const reservoir = creationText(fd, "reservoir", "AVERAGE");
+  if (!Object.values(Reservoir).some(value => value === reservoir) || reservoir === "SPECIAL") throw new CreationValidationError("CHAKRA", "Wähle ein gültiges Chakra-Reservoir.", "chakra");
+  const regenRank = creationText(fd, "regen", "TRAINED"), controlRank = creationText(fd, "control", "TRAINED");
+  if (![regenRank, controlRank].every(rank => Object.values(RegenRank).some(value => value === rank))) throw new CreationValidationError("CHAKRA", "Wähle gültige Werte für Chakra-Regeneration und Chakra-Kontrolle.", "chakra");
+  const speed = Number(creationText(fd, "speed", "30"));
+  if (!Number.isInteger(speed) || speed < 0 || speed > 2147483647) throw new CreationValidationError("SPEED", "Die Bewegung muss eine nicht negative ganze Zahl sein.", "combat");
+  const jutsu = fd.getAll("jutsu").map(String), savingThrows = fd.getAll("savingThrow").map(String), startingSkills = fd.getAll("skill").map(String);
+  if (!validStartingSkills(startingSkills) || startingSkills.some(skill => !Object.hasOwn(skills, skill))) throw new CreationValidationError("SKILLS", "Wähle höchstens drei unterschiedliche gültige Fertigkeiten.", "skills");
+  if (new Set(savingThrows).size !== savingThrows.length || !savingThrows.every(value => keys.some(key => key.toUpperCase() === value))) throw new CreationValidationError("SAVES", "Bitte überprüfe deine Rettungswurf-Auswahl.", "skills");
+  if (jutsu.length > 2 || new Set(jutsu).size !== jutsu.length) throw new CreationValidationError("JUTSU", jutsuUnavailableMessage, "jutsu");
+  const natureKey = creationText(fd, "nature"), natureId = creationText(fd, "chakraNatureId");
+  if (!natureKey && !natureId) throw new CreationValidationError("NATURE", "Wähle eine primäre Chakra-Natur.", "nature");
+  const maxHp = calculateMaxHp(level, con, hitDie, hpLevels);
+  const max = calculateMaxChakra(level, con, wis, reservoir as Reservoir);
+  const background=creationText(fd,"background"),alignment=creationText(fd,"alignment"),description=creationText(fd,"description");
+  await prisma.$transaction(async tx => {
+   const chakraNature = await tx.chakraNature.findUnique({where: natureId ? {id: natureId} : {key: natureKey}});
+   if (!chakraNature?.playerSelectable || (natureKey && chakraNature.key !== natureKey)) throw new CreationValidationError("NATURE", natureUnavailableMessage, "nature");
+   const selected = await tx.jutsu.findMany({where: {id: {in: jutsu}, rank: {not: "S"}, OR: [{campaignId: null}, {campaignId}]}, include: {natures: {include: {nature: true}}}});
+   if (selected.length !== jutsu.length || selected.some(item => !isStartingJutsuAllowed(item, campaignId, chakraNature.key))) throw new CreationValidationError("JUTSU", jutsuUnavailableMessage, "jutsu");
+   const character = await tx.character.create({data: {
+    campaignId, name, level, background, alignment, description, speed, ...scores,
+    hpLevels: {create: hpLevels}, hitDie, hitDieAbilityBonus: hitDieAbilityBonus as string | null,
+    maxHp, currentHp: maxHp, acOverride: null, currentChakra: max, reservoir: reservoir as Reservoir,
+    regenRank: regenRank as RegenRank, controlRank: controlRank as RegenRank,
+    natureLinks: {create: {chakraNatureId: chakraNature.id, isPrimary: true}}, dmData: {create: {}},
+    savingThrows: {create: savingThrows.map(ability => ({ability}))},
+    skills: {create: startingSkills.map(skill => ({skill, proficiency: "PROFICIENT"}))},
+   }});
+   if (jutsu.length) await tx.characterJutsu.createMany({data: jutsu.map(jutsuId => ({characterId: character.id, jutsuId}))});
+  });
+  return {ok: true, destination: `/campaign/${campaignId}`};
+ } catch (error) {
+  if (error instanceof CreationValidationError) return {ok: false, code: error.code, message: error.message, field: error.field};
+  if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2025", "P2034"].includes(error.code)) return {ok: false, code: "CONFLICT", message: "Deine Auswahl konnte nicht gespeichert werden. Bitte ?berpr?fe sie und versuche es erneut."};
+  console.error("Character creation failed", {campaignId, error});
+  return {ok: false, code: "INTERNAL", message: creationFailureMessage};
+ }
+}
