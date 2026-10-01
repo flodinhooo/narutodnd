@@ -2,12 +2,42 @@ export type Ability = "STR"|"DEX"|"CON"|"INT"|"WIS"|"CHA";
 export const abilities: Ability[]=["STR","DEX","CON","INT","WIS","CHA"];
 export const skills={Acrobatics:"DEX", "Animal Handling":"WIS",Arcana:"INT",Athletics:"STR",Deception:"CHA",History:"INT",Insight:"WIS",Intimidation:"CHA",Investigation:"INT",Medicine:"WIS",Nature:"INT",Perception:"WIS",Performance:"CHA",Persuasion:"CHA",Religion:"INT","Sleight of Hand":"DEX",Stealth:"DEX",Survival:"WIS"} as const;
 export const getAbilityModifier=(score:number)=>Math.floor((score-10)/2);
-// Keep the existing +6 per later level; only first-level HP depends on the chosen die.
-export const calculateMaxHp=(level:number,constitution:number,hitDie:HitDie="d10")=>{
- const safeLevel=Number.isFinite(level)?Math.max(1,Math.floor(level)):1;
- const conModifier=getAbilityModifier(Number.isFinite(constitution)?constitution:10);
- return (hitDie==="d8"?8:10)+(safeLevel-1)*6+safeLevel*conModifier;
-};
+export type HpLevelRoll = {level: number; hitDie: string; rawRoll: number; effectiveRoll: number};
+export type HpLegacyBaseline = {hpLegacyLevel?: number | null; hpLegacyBase?: number | null};
+export function getHitDieMaximum(hitDie: unknown) {
+ if (hitDie !== "d8" && hitDie !== "d10") throw new Error("Invalid hit die");
+ return hitDie === "d8" ? 8 : 10;
+}
+export const getHitDieMinimum = (hitDie: unknown) => getHitDieMaximum(hitDie) / 2;
+export function getEffectiveHpRoll(hitDie: unknown, rawRoll: unknown) {
+ const maximum = getHitDieMaximum(hitDie);
+ if (typeof rawRoll !== "number" || !Number.isInteger(rawRoll) || rawRoll < 1 || rawRoll > maximum) throw new Error(`Roll must be a whole number from 1 to ${maximum}`);
+ return Math.max(rawRoll, getHitDieMinimum(hitDie));
+}
+export function validateCharacterLevel(level: number) {
+ if (!Number.isInteger(level) || level < 1 || level > 20) throw new Error("Level must be between 1 and 20");
+}
+export const calculateHpContribution = (hitDie: unknown, rawRoll: unknown, constitution: number) => getEffectiveHpRoll(hitDie, rawRoll) + getAbilityModifier(constitution);
+export function calculateMaxHp(level: number, constitution: number, hitDie: string = "d10", rolls: readonly HpLevelRoll[] = [], legacy: HpLegacyBaseline = {}) {
+ validateCharacterLevel(level);
+ const maximum = getHitDieMaximum(hitDie);
+ if (!Number.isInteger(constitution) || constitution < 1 || constitution > 20) throw new Error("Invalid Constitution score");
+ const baselineLevel = legacy.hpLegacyLevel ?? 1;
+ validateCharacterLevel(baselineLevel);
+ if (legacy.hpLegacyLevel != null && !Number.isInteger(legacy.hpLegacyBase)) throw new Error("Invalid legacy HP baseline");
+ let total = legacy.hpLegacyBase ?? maximum;
+ const active = rolls.filter(roll => roll.level > baselineLevel && roll.level <= level);
+ if (new Set(active.map(roll => roll.level)).size !== active.length) throw new Error("Duplicate HP level rolls");
+ for (let next = baselineLevel + 1; next <= level; next++) {
+  const roll = active.find(roll => roll.level === next);
+  if (!roll) throw new Error(`HP roll required for level ${next}`);
+  const effective = getEffectiveHpRoll(roll.hitDie, roll.rawRoll);
+  if (roll.effectiveRoll !== effective) throw new Error("Invalid persisted effective roll");
+  total += effective;
+ }
+ return Math.max(1, total + level * getAbilityModifier(constitution));
+}
+export const effectiveMaxHp = (derived: number, overrideOffset?: number | null) => Math.max(1, derived + (overrideOffset ?? 0));
 export const calculateBaseArmorClass=(dexterity:number)=>12+getAbilityModifier(dexterity);
 export const calculateInitiativeBonus=(dexterity:number)=>getAbilityModifier(dexterity);
 export const getProficiencyBonus=(level:number)=>level<5?2:level<9?3:level<13?4:level<17?5:6;

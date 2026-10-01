@@ -15,6 +15,7 @@ import {
     toggleJutsu,
     performLimitBreak
 } from "@/app/dm-actions";
+import HpLevelUp from "./HpLevelUp";
 import {skills} from "@/lib/rules";
 
 type Props = {
@@ -23,6 +24,10 @@ type Props = {
     character: {
         name: string;
         level: number;
+        hitDie: string;
+        hpLegacyLevel: number | null;
+        hpOverrideOffset: number | null;
+        hpLevels: {level: number; hitDie: string; rawRoll: number; effectiveRoll: number}[];
         maxHp: number;
         currentHp: number;
         currentChakra: number;
@@ -91,11 +96,11 @@ export default function DmControls({campaignId, characterId, character, natures,
         value="character">
         <form action={async fd => call(() => updateCharacter(campaignId, characterId, fd))} className="form"><label>Name<input
             name="name" defaultValue={character.name}/></label>
-            <div className="two"><label>Level<input name="level" type="number"
+            <div className="two"><label>Level (senken)<input name="level" min="1" max={character.level} type="number"
                                                     defaultValue={character.level}/></label><label>Speed<input
                 name="speed" type="number" defaultValue={character.speed}/></label><label>Maximum HP<input name="maxHp"
                                                                                                            type="number"
-                                                                                                           defaultValue={character.maxHp}/></label><label>AC
+                                                                                                           min="1" placeholder="Regelbasiert" defaultValue={character.hpOverrideOffset !== null ? character.maxHp : ""}/></label><label>AC
                 Override<input name="acOverride" type="number" defaultValue={character.acOverride ?? ""}/></label></div>
                 <label>Initiative Override<input name="initiativeOverride" type="number" defaultValue={character.initiativeOverride ?? ""}/></label>
             <div className="scores">{(["str", "dex", "con", "int", "wis", "cha"] as const).map(k => <label
@@ -104,8 +109,10 @@ export default function DmControls({campaignId, characterId, character, natures,
                                        defaultValue={character.background}/></label><label>Alignment<input
                 name="alignment" defaultValue={character.alignment}/></label><label>Description<textarea
                 name="description" defaultValue={character.description}/></label>
+            <p className="muted">Maximum HP ist ein bewusster DM-Override. Leer lassen, um regelbasierte HP zu verwenden. Level-Ups werden unten einzeln bestätigt; der Override-Aufschlag bleibt bei Level-/CON-Änderungen erhalten.</p>
             <button className="button primary">Save Character</button>
         </form>
+        <HpLevelUp campaignId={campaignId} characterId={characterId} character={character}/>
     </TabsContent><TabsContent value="combat">
         <div className="form"><label>Current HP<input value={character.currentHp} readOnly/></label>
             <div className="two">

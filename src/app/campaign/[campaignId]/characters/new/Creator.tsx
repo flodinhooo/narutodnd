@@ -6,6 +6,8 @@ import {
     calculateInitiativeBonus,
     calculateMaxChakra,
     calculateMaxHp,
+    getEffectiveHpRoll,
+    getHitDieMaximum,
     getFinalAbilityScores,
     getCreationAbilityScores,
     type Ability as RuleAbility,
@@ -72,6 +74,7 @@ type State = {
     regen: string;
     control: string;
     jutsu: string[];
+    hpRolls: Record<number, {mode: "AUTO" | "MANUAL"; raw: string}>;
     speed: number
 };
 const initial: State = {
@@ -92,6 +95,7 @@ const initial: State = {
     regen: "TRAINED",
     control: "TRAINED",
     jutsu: [],
+    hpRolls: {},
     speed: 30
 };
 export default function Creator({campaignId, natures, jutsu}: {
@@ -125,7 +129,21 @@ export default function Creator({campaignId, natures, jutsu}: {
     try { getCreationAbilityScores(s.mode, s.baseScores, s.hitDie, s.hitDieAbilityBonus); validCreation = true; } catch (error) { validationError = error instanceof Error ? error.message : "Invalid character choices"; }
     const scoreLabel = (a: Ability) => `${s.baseScores[a]}${s.hitDie === "d8" && s.hitDieAbilityBonus === short[a] ? ` + 1 = ${finalScores[a]}` : ""}`;
     const max = calculateMaxChakra(s.level, finalScores.con, finalScores.wis, s.reservoir as never);
-    const maxHp = calculateMaxHp(s.level, finalScores.con, s.hitDie ?? "d10");
+    const hpLevels = Array.from({length: Math.max(0, Math.min(20, Math.floor(s.level)) - 1)}, (_, i) => i + 2);
+    let hpChoicesValid = Number.isInteger(s.level) && s.level >= 1 && s.level <= 20;
+    let hasAutomatic = false;
+    const previewRolls = hpLevels.flatMap(level => {
+        const roll = s.hpRolls[level];
+        if (roll?.mode === "AUTO") { hasAutomatic = true; return []; }
+        try {
+            const rawRoll = Number(roll?.raw);
+            const effectiveRoll = getEffectiveHpRoll(s.hitDie, rawRoll);
+            return [{level, hitDie: s.hitDie!, rawRoll, effectiveRoll}];
+        } catch { hpChoicesValid = false; return []; }
+    });
+    let maxHp: number | null = null;
+    if (validCreation && hpChoicesValid && !hasAutomatic && s.hitDie) maxHp = calculateMaxHp(s.level, finalScores.con, s.hitDie, previewRolls);
+    const setHpRoll = (level: number, roll: {mode: "AUTO" | "MANUAL"; raw: string}) => patch({hpRolls: {...s.hpRolls, [level]: roll}});
     const ac = calculateBaseArmorClass(finalScores.dex);
     const remaining = 27 - pointBuyTotal(abilities.map(a => s.baseScores[a]));
     const go = (n: number) => setStep(Math.max(0, Math.min(7, n)));
@@ -146,7 +164,7 @@ export default function Creator({campaignId, natures, jutsu}: {
                                                                                              className={i === step ? "active" : ""}
                                                                                              onClick={() => i <= step && go(i)}
                                                                                              key={x}>{i + 1}. {x}</button>)}</nav>
-        <form action={createCharacter.bind(null, campaignId)} className="panel form"><input type="hidden" name="hitDie" value={s.hitDie ?? ""}/>{s.hitDieAbilityBonus && <input type="hidden" name="hitDieAbilityBonus" value={s.hitDieAbilityBonus}/>}<input type="hidden" name="mode"
+        <form action={createCharacter.bind(null, campaignId)} className="panel form">{hpLevels.map(level => <span key={level} hidden><input type="hidden" name={`hpRollMode${level}`} value={s.hpRolls[level]?.mode ?? ""}/><input type="hidden" name={`hpRawRoll${level}`} value={s.hpRolls[level]?.raw ?? ""}/></span>)}<input type="hidden" name="hitDie" value={s.hitDie ?? ""}/>{s.hitDieAbilityBonus && <input type="hidden" name="hitDieAbilityBonus" value={s.hitDieAbilityBonus}/>}<input type="hidden" name="mode"
                                                                                             value={s.mode}/><input
             type="hidden" name="name" value={s.name}/><input type="hidden" name="level" value={s.level}/><input
             type="hidden" name="background" value={s.background}/><input type="hidden" name="alignment"
@@ -163,7 +181,7 @@ export default function Creator({campaignId, natures, jutsu}: {
                                                                                                    key={x}/>)}{s.skill.map(x =>
             <input type="hidden" name="skill" value={x} key={x}/>)}{s.jutsu.map(x => <input type="hidden" name="jutsu"
                                                                                             value={x} key={x}/>)}
-            {step === 0 && <><h2>Shinobi-Typ</h2><div className="two">{(["d8", "d10"] as const).map(die => <button type="button" key={die} aria-pressed={s.hitDie === die} className={`hit-die-card ${s.hitDie === die ? "selected" : ""}`} onClick={() => patch({hitDie: die, hitDieAbilityBonus: die === s.hitDie ? s.hitDieAbilityBonus : null})}><strong>{die === "d8" ? "D8 - Talentiert" : "D10 - Robust"}</strong><span>Hit Die: {die}</span><small>{die === "d8" ? "Weniger natürliche Widerstandsfähigkeit, dafür +1 auf ein Attribut deiner Wahl." : "Mehr natürliche Widerstandsfähigkeit und höhere Trefferpunkte."}</small></button>)}</div></>}
+            {step === 0 && <><h2>Shinobi-Typ</h2><div className="two">{(["d8", "d10"] as const).map(die => <button type="button" key={die} aria-pressed={s.hitDie === die} className={`hit-die-card ${s.hitDie === die ? "selected" : ""}`} onClick={() => patch({hitDie: die, hitDieAbilityBonus: die === s.hitDie ? s.hitDieAbilityBonus : null, hpRolls: die === s.hitDie ? s.hpRolls : {}})}><strong>{die === "d8" ? "D8 - Talentiert" : "D10 - Robust"}</strong><span>Hit Die: {die}</span><small>{die === "d8" ? "Weniger natürliche Widerstandsfähigkeit, dafür +1 auf ein Attribut deiner Wahl." : "Mehr natürliche Widerstandsfähigkeit und höhere Trefferpunkte."}</small></button>)}</div></>}
             {step === 1 && <><h2>Grundlagen</h2><p className="muted">Name und Stufe sind erforderlich. Die brigen
                 Angaben sind optional.</p><label>Name<input required value={s.name}
                                                             onChange={e => patch({name: e.target.value})}/></label><label>Stufe<input
@@ -249,8 +267,8 @@ export default function Creator({campaignId, natures, jutsu}: {
                 className="check jutsu-choice" key={x.id}><input type="checkbox" checked={s.jutsu.includes(x.id)}
                                                                  disabled={!s.jutsu.includes(x.id) && s.jutsu.length >= 2}
                                                                  onChange={() => patch({jutsu: s.jutsu.includes(x.id) ? s.jutsu.filter(y => y !== x.id) : [...s.jutsu, x.id]})}/><span><strong>{x.name}</strong><small>Rang {x.rank} {x.chakraCost} Chakra {x.actionType} {x.range}</small></span></label>)}</>}
-            {step === 6 && <><h2>Kampf</h2><label>Bewegung<input type="number" min="0" value={s.speed}
-                                                                 onChange={e => patch({speed: Number(e.target.value)})}/></label><div className="preview"><small>HIT DIE</small><strong>{s.hitDie ?? "Nicht gewählt"}</strong><small>MAXIMALE TP</small><strong>{maxHp}</strong><small>RÜSTUNGSKLASSE</small><strong>{ac}</strong><small>INITIATIVE</small><strong>{signed(calculateInitiativeBonus(finalScores.dex))}</strong></div><p className="muted">HP: {s.hitDie} + CON ({signed(getAbilityModifier(finalScores.con))}){s.level > 1 ? ` + ${s.level - 1} Folgestufen gemäß bestehender HP-Regel` : ""}. AC: 12 + DEX. Initiative: DEX.</p></>}
+            {step === 6 && <><h2>Kampf</h2>{hpLevels.map(level => <section key={level}><h3>Trefferpunkte für Level {level}</h3><label>HP-Wurf<select value={s.hpRolls[level]?.mode ?? ""} onChange={e => setHpRoll(level, {mode: e.target.value as "AUTO" | "MANUAL", raw: ""})}><option value="">Wählen</option><option value="AUTO">Automatisch beim Erstellen würfeln</option><option value="MANUAL">Selbst würfeln</option></select></label>{s.hpRolls[level]?.mode === "MANUAL" && <label>Gewürfelte Zahl<input type="number" min={1} max={getHitDieMaximum(s.hitDie ?? "d10")} step={1} value={s.hpRolls[level].raw} onChange={e => setHpRoll(level, {...s.hpRolls[level], raw: e.target.value})}/></label>}{s.hpRolls[level]?.mode === "AUTO" && <p className="muted">Ein serverseitiger Wurf wird beim Bestätigen der Erstellung gespeichert.</p>}</section>)}<label>Bewegung<input type="number" min="0" value={s.speed}
+                                                                 onChange={e => patch({speed: Number(e.target.value)})}/></label><div className="preview"><small>HIT DIE</small><strong>{s.hitDie ?? "Nicht gewählt"}</strong><small>MAXIMALE TP</small><strong>{maxHp ?? "Rolls ausstehend"}</strong><small>RÜSTUNGSKLASSE</small><strong>{ac}</strong><small>INITIATIVE</small><strong>{signed(calculateInitiativeBonus(finalScores.dex))}</strong></div><p className="muted">HP: {s.hitDie} + CON ({signed(getAbilityModifier(finalScores.con))}){s.level > 1 ? ` + ${s.level - 1} persistente Level-Rolls und CON je Level` : ""}. AC: 12 + DEX. Initiative: DEX.</p></>}
             {step === 7 && <>
                 <h2>&Uuml;bersicht</h2>{[["Shinobi-Typ", 0], ["Grundlagen", 1], ["Attribute", 2], ["Fertigkeiten", 3], ["Chakra", 4], ["Jutsu", 5], ["Kampf", 6]].map(([title, target]) =>
                 <section className="review-section" key={String(title)}>
@@ -261,14 +279,15 @@ export default function Creator({campaignId, natures, jutsu}: {
                     {title === "Shinobi-Typ" ? <p>Hit Die: {s.hitDie ?? "Nicht gewählt"}{s.hitDie === "d8" && <><br/>Talentbonus: {s.hitDieAbilityBonus ? `+1 ${s.hitDieAbilityBonus}` : "Bitte wählen"}</>}</p> : title === "Attribute" ? <div className="review-grid">{abilities.map(a => <span
                         key={a}>{short[a]} {names[a]}<strong>{finalScores[a]} ({signed(getAbilityModifier(finalScores[a]))})</strong>{s.hitDie === "d8" && s.hitDieAbilityBonus === short[a] && <small>Base {s.baseScores[a]} + D8 Bonus 1</small>}</span>)}</div> : title === "Kampf" ?
                         <div className="review-grid">
-                            <span>Hit Die<strong>{s.hitDie ?? "Nicht gewählt"}</strong></span><span>Maximale TP<strong>{maxHp}</strong></span><span>Bewegung<strong>{s.speed} ft</strong></span><span>Initiative<strong>{signed(calculateInitiativeBonus(finalScores.dex))}</strong></span><span>bungsbonus<strong>{signed(getProficiencyBonus(s.level))}</strong></span><span>Rstungsklasse<strong>{ac}</strong></span>
+                            <span>Hit Die<strong>{s.hitDie ?? "Nicht gewählt"}</strong></span><span>Maximale TP<strong>{maxHp ?? "Rolls ausstehend"}</strong></span><span>Bewegung<strong>{s.speed} ft</strong></span><span>Initiative<strong>{signed(calculateInitiativeBonus(finalScores.dex))}</strong></span><span>bungsbonus<strong>{signed(getProficiencyBonus(s.level))}</strong></span><span>Rstungsklasse<strong>{ac}</strong></span>
                         </div> : title === "Chakra" ? <div className="review-grid">
                                 <span>Natur<strong>{natures.find(n => n.key === s.nature)?.displayName || "Nicht gewhlt"}</strong></span><span>Reservoir<strong>{label(s.reservoir)}</strong></span><span>Maximales Chakra<strong>{max}</strong></span>
                             </div> :
                             <p>{title === "Grundlagen" ? `${s.name || "Nicht angegeben"}  Stufe ${s.level}` : title === "Fertigkeiten" ? `${s.skill.length} / 3 gewhlt` : title === "Jutsu" ? `${s.jutsu.length} Jutsu gewhlt` : ""}</p>}
                 </section>)}
+                {!hpChoicesValid && <p role="status">Bitte für jedes Level ab 2 einen gültigen HP-Wurf wählen.</p>}
                 {!validCreation && <p role="status" className="muted">{validationError}</p>}
-                <button className="button primary" type="submit" disabled={!validCreation}>Charakter erstellen</button>
+                <button className="button primary" type="submit" disabled={!validCreation || !hpChoicesValid}>Charakter erstellen</button>
             </>}
             <div className="creator-nav">{step > 0 ?
                 <button type="button" className="button ghost" onClick={() => go(step - 1)}> Zurck</button> :

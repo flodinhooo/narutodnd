@@ -2,7 +2,8 @@
 import { redirect } from "next/navigation";
 import { Reservoir } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { calculateMaxChakra, calculateMaxHp, getCreationAbilityScores, type AbilityScores } from "@/lib/rules";
+import { calculateMaxChakra, calculateMaxHp, getCreationAbilityScores, getEffectiveHpRoll, validateCharacterLevel, type AbilityScores } from "@/lib/rules";
+import {rollHitDie} from "@/lib/hp-roll";
 import { accessCodeLookup, hashCode, makeCode, requireCampaign, resolveCampaignAccess, setCreationHandoff, setSession } from "@/lib/session";
 
 export async function createCampaign(fd: FormData) {
@@ -32,6 +33,14 @@ export async function createCharacter(campaignId: string, fd: FormData) {
   const hitDieAbilityBonus = bonuses[0] ?? null;
   const scores = getCreationAbilityScores(String(fd.get("mode") || ""), Object.fromEntries(keys.map(key => [key, fd.has(key) ? Number(fd.get(key)) : NaN])) as AbilityScores, hitDie, hitDieAbilityBonus);
   const {con, wis} = scores;
+  validateCharacterLevel(level);
+  const hpLevels = Array.from({length: level - 1}, (_, index) => {
+    const hpLevel = index + 2;
+    const mode = fd.get(`hpRollMode${hpLevel}`);
+    if (mode !== "AUTO" && mode !== "MANUAL") throw new Error(`Choose an HP roll for level ${hpLevel}`);
+    const rawRoll = mode === "AUTO" ? rollHitDie(String(hitDie)) : Number(fd.get(`hpRawRoll${hpLevel}`));
+    return {level: hpLevel, hitDie: String(hitDie), rawRoll, effectiveRoll: getEffectiveHpRoll(hitDie, rawRoll)};
+  });
   const nature = String(fd.get("nature")); const reservoir = String(fd.get("reservoir") || "AVERAGE") as keyof typeof Reservoir;
   const max = calculateMaxChakra(level, con, wis, reservoir, Number(fd.get("custom") || 1));
   const jutsu = fd.getAll("jutsu").map(String); const savingThrows = fd.getAll("savingThrow").map(String); const startingSkills = fd.getAll("skill").map(String); const chakraNature = await prisma.chakraNature.findUniqueOrThrow({ where: { key: nature } });
@@ -39,9 +48,9 @@ export async function createCharacter(campaignId: string, fd: FormData) {
   if(!savingThrows.every(x=>keys.map(k=>k.toUpperCase()).includes(x)))throw new Error("Invalid saving throw");
   const name=String(fd.get("name")||"").trim(); if(!name||name.length>100)throw new Error("Character name is required");
   if(!Number.isInteger(level)||level<1||level>20)throw new Error("Level must be between 1 and 20");
-  const speed=Number(fd.get("speed")||30), maxHp=calculateMaxHp(level,con,hitDie as "d8"|"d10"); if(!Number.isInteger(speed)||speed<0)throw new Error("Invalid combat values");
+  const speed=Number(fd.get("speed")||30), maxHp=calculateMaxHp(level,con,String(hitDie),hpLevels); if(!Number.isInteger(speed)||speed<0)throw new Error("Invalid combat values");
   const selected=await prisma.jutsu.findMany({where:{id:{in:jutsu},rank:{not:"S"}},include:{natures:true}}); if(selected.length!==new Set(jutsu).size||jutsu.length>2||selected.some(x=>!x.natures.some(n=>n.chakraNatureId===chakraNature.id)))throw new Error("Invalid starting Jutsu selection");
-  await prisma.$transaction(async tx => { const character = await tx.character.create({ data: { campaignId, name, level, background:String(fd.get("background")||""),alignment:String(fd.get("alignment")||""),description:String(fd.get("description")||""),speed,hitDie:String(hitDie),hitDieAbilityBonus:hitDieAbilityBonus as string|null,maxHp,currentHp:maxHp,acOverride:null, currentChakra: max, reservoir, ...scores, natureLinks: { create: { chakraNatureId: chakraNature.id, isPrimary: true } }, dmData: { create: {} }, savingThrows: { create: savingThrows.map(ability => ({ ability })) }, skills: { create: startingSkills.map(skill => ({ skill, proficiency: "PROFICIENT" })) } } }); if (jutsu.length) await tx.characterJutsu.createMany({ data: jutsu.map(jutsuId => ({ characterId: character.id, jutsuId })) }); });
+  await prisma.$transaction(async tx => { const character = await tx.character.create({ data: { campaignId, name, level, background:String(fd.get("background")||""),alignment:String(fd.get("alignment")||""),description:String(fd.get("description")||""),speed,hpLevels:{create:hpLevels},hitDie:String(hitDie),hitDieAbilityBonus:hitDieAbilityBonus as string|null,maxHp,currentHp:maxHp,acOverride:null, currentChakra: max, reservoir, ...scores, natureLinks: { create: { chakraNatureId: chakraNature.id, isPrimary: true } }, dmData: { create: {} }, savingThrows: { create: savingThrows.map(ability => ({ ability })) }, skills: { create: startingSkills.map(skill => ({ skill, proficiency: "PROFICIENT" })) } } }); if (jutsu.length) await tx.characterJutsu.createMany({ data: jutsu.map(jutsuId => ({ characterId: character.id, jutsuId })) }); });
   redirect(`/campaign/${campaignId}`);
 }
 
