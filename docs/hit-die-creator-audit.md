@@ -10,9 +10,9 @@ Jetzt: Shinobi-Typ -> Grundlagen -> Attribute -> Fertigkeiten -> Chakra -> Jutsu
 - D8 verlangt genau einen der Werte STR/DEX/CON/INT/WIS/CHA; D10 verlangt null. Mehrere FormData-Eintraege werden abgewiesen.
 - Creator besitzt nur mutable Base Scores. Final Scores entstehen durch `getFinalAbilityScores`. Server validiert Base-Modus/-Werte und Bonus mit `getCreationAbilityScores` und persistiert die finalen Scores. Bonus-Metadaten werden auf dem Sheet angezeigt, nicht erneut addiert. DM bearbeitet weiterhin finale Scores.
 - Standard Array bleibt 15/14/13/12/10/8; Point Buy bleibt hoechstens 27 Punkte auf Base Scores 8-15; Manual 1-20. Final Scores duerfen 20 nicht ueberschreiten.
-- Level-1-HP: 8 bzw. 10 + finaler CON-Modifikator. Oberhalb Level 1 wird die bereits vorhandene zentrale Regel beibehalten: Startwert + (Level-1)*6 + Level*CON-Modifikator. Eine eigene d8-Folgestufenregel ist eine offene Designentscheidung. Kein Wuerfeln oder neues Level-Up-System ergaenzt.
+- Level-1-HP: 8 bzw. 10 + finaler CON-Modifikator. Oberhalb Level 1 gelten inzwischen persistente Hit-Die-Rolls mit d8-Minimum 4 und d10-Minimum 5. Details siehe [HP-Level-Ups](hp-level-up.md).
 - Alle Creator-Modifikatoren, Skills, Saves, Initiative, AC, HP und Chakra nutzen Final Scores. Wechsel auf d10 loescht die Bonuswahl. Keine Player-Inputs oder Hidden Inputs fuer HP/AC-Overrides.
-- DM-HP-Override wird jetzt tatsaechlich beruecksichtigt; fehlende Werte aus Teilformularen bleiben erhalten. HP-Damage bleibt erhalten, Chakra wird bei CON/WIS-/Level-Aenderungen mit bestehender Preserve-Regel aktualisiert. Level-/CON-Aenderungen ersetzen keinen bewussten HP-Override.
+- DM-HP-Override wird jetzt tatsaechlich beruecksichtigt; fehlende Werte aus Teilformularen bleiben erhalten. HP-Damage bleibt erhalten, Chakra wird bei CON/WIS-/Level-Aenderungen mit bestehender Preserve-Regel aktualisiert. Level-/CON-Aenderungen behalten einen bewussten HP-Override-Aufschlag bei.
 
 ## Konzeptueller Abgleich mit D&D 5e (2014)
 
@@ -29,7 +29,7 @@ D&D Beyond ist Referenz, nicht Projektspezifikation.
 | Saving Throw Proficiencies | bewusst Naruto-modifiziert | Frei waehlbar, keine Anzahlbegrenzung, statt klassenbasierter Auswahl. |
 | Proficiency Bonus | entspricht weitgehend D&D 5e | +2 bis +6 nach Level. |
 | Hit Dice | bewusst Naruto-modifiziert | Klassenlos: freie d8/d10-Wahl; d8 gewaehrt einen Attributbonus. |
-| HP | moegliche Inkonsistenz / offene Designentscheidung | Level 1 folgt maximalem Hit Die + CON; bestehende +6-Folgestufenregel bleibt auch fuer d8. |
+| HP | moegliche Inkonsistenz / offene Designentscheidung | Level 1 folgt maximalem Hit Die + CON; Persistente Rolls mit Naruto-Mindestwert d8=4/d10=5 ersetzen die fruehere +6-Regel. |
 | Constitution Modifier | entspricht weitgehend D&D 5e | Wirkt auf HP je Stufe; wirkt zusaetzlich auf Naruto-Chakra. |
 | Initiative | entspricht weitgehend D&D 5e | DEX-Modifikator. |
 | AC | bewusst Naruto-modifiziert | Bestehende Basis 12 + DEX statt ungeruestet 10 + DEX; DM-Override bleibt. |
@@ -48,4 +48,4 @@ DM-Bonuskennzeichnung dokumentiert die urspruengliche D8-Wahl; nach administrati
 
 Rule-Tests fuer alle sechs Boni, ungueltige Kombinationen, Base/Final-Grenzen, alle Verteilungsmodi, Derived Stats und HP; echte Server-Action-Tests mit gemockter Persistenz fuer manipulierte FormData/Autorisierung; DM-Teilformular-/HP-Override-Regressionspruefungen. Bestehende Tests bleiben erhalten.
 
-Migration wird auf isolierter SQLite-Datenbank geprueft, nicht auf einer vorhandenen Kampagnendatenbank angewendet. Vor Einsatz der neuen Anwendung `npx prisma migrate deploy` ausfuehren.
+Migrationen wurden inzwischen auch auf der lokalen Entwicklungsdatenbank mit Backup angewendet; alle 3 Campaigns und 3 Characters sind erhalten. Siehe [Migrationsbericht](hp-level-up.md).

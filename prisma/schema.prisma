@@ -115,6 +115,10 @@ model Character {
   currentHp                 Int                      @default(10)
   hitDie                    String                   @default("d10")
   hitDieAbilityBonus         String?
+  hpLegacyLevel             Int?
+  hpLegacyBase              Int?
+  hpOverrideOffset          Int?
+  hpLevels                  CharacterHpLevel[]
   acOverride                Int?
   initiativeOverride        Int?
   str                       Int                      @default(10)
@@ -143,6 +147,19 @@ model Character {
   updatedAt                 DateTime                 @updatedAt
 
   @@index([campaignId])
+}
+
+model CharacterHpLevel {
+  id            String    @id @default(cuid())
+  characterId   String
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  level         Int
+  hitDie        String
+  rawRoll       Int
+  effectiveRoll Int
+  createdAt     DateTime  @default(now())
+
+  @@unique([characterId, level])
 }
 
 model CharacterChakraNature {
