@@ -96,6 +96,7 @@ model ChakraNature {
   key         String                  @unique
   displayName String
   description String
+  playerSelectable Boolean @default(false)
   characters  CharacterChakraNature[]
   jutsu       JutsuChakraNature[]
 }
