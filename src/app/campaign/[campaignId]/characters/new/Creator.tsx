@@ -50,6 +50,7 @@ const skillNames: Record<string, string> = {
     Stealth: "Stealth",
     Survival: "Survival"
 };
+
 const steps = ["Shinobi-Typ", "Grundlagen", "Attribute", "Fertigkeiten", "Chakra", "Jutsu", "Kampf", "\u00dcbersicht"];
 const label = (x: string) => x.replaceAll("_", " ").toLowerCase().replace(/(^| )\S/g, c => c.toUpperCase());
 const signed = (x: number) => `${x >= 0 ? "+" : ""}${x}`;
