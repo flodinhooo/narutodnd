@@ -2,10 +2,11 @@ export type Ability = "STR"|"DEX"|"CON"|"INT"|"WIS"|"CHA";
 export const abilities: Ability[]=["STR","DEX","CON","INT","WIS","CHA"];
 export const skills={Acrobatics:"DEX", "Animal Handling":"WIS",Arcana:"INT",Athletics:"STR",Deception:"CHA",History:"INT",Insight:"WIS",Intimidation:"CHA",Investigation:"INT",Medicine:"WIS",Nature:"INT",Perception:"WIS",Performance:"CHA",Persuasion:"CHA",Religion:"INT","Sleight of Hand":"DEX",Stealth:"DEX",Survival:"WIS"} as const;
 export const getAbilityModifier=(score:number)=>Math.floor((score-10)/2);
-export const calculateMaxHp=(level:number,constitution:number)=>{
+// Keep the existing +6 per later level; only first-level HP depends on the chosen die.
+export const calculateMaxHp=(level:number,constitution:number,hitDie:HitDie="d10")=>{
  const safeLevel=Number.isFinite(level)?Math.max(1,Math.floor(level)):1;
  const conModifier=getAbilityModifier(Number.isFinite(constitution)?constitution:10);
- return 10+(safeLevel-1)*6+safeLevel*conModifier;
+ return (hitDie==="d8"?8:10)+(safeLevel-1)*6+safeLevel*conModifier;
 };
 export const calculateBaseArmorClass=(dexterity:number)=>12+getAbilityModifier(dexterity);
 export const calculateInitiativeBonus=(dexterity:number)=>getAbilityModifier(dexterity);
@@ -36,3 +37,31 @@ export const pointBuyTotal=(scores:number[])=>scores.reduce((sum,score)=>sum+poi
 export const validStandardArray=(scores:number[])=>scores.length===6&&[...scores].sort((a,b)=>a-b).join(",")===[...standardArray].sort((a,b)=>a-b).join(",");
 export const validPointBuy=(scores:number[])=>scores.length===6&&scores.every(score=>score>=8&&score<=15)&&pointBuyTotal(scores)<=27;
 export const validStartingSkills=(skills:string[])=>skills.length<=3&&new Set(skills).size===skills.length;
+
+export type HitDie = "d8" | "d10";
+export type AbilityScores = Record<Lowercase<Ability>, number>;
+export function validateHitDieChoice(hitDie: unknown, bonus: unknown): asserts hitDie is HitDie {
+ if (hitDie !== "d8" && hitDie !== "d10") throw new Error("Choose d8 or d10");
+ if (hitDie === "d8" && !abilities.includes(bonus as Ability)) throw new Error("D8 requires exactly one valid ability bonus");
+ if (hitDie === "d10" && bonus !== null) throw new Error("D10 cannot have an ability bonus");
+}
+// Preview can be incomplete; authoritative creation validates the choice first.
+export function getFinalAbilityScores(base: AbilityScores, hitDie: HitDie | null, bonus: Ability | null): AbilityScores {
+ const result = {...base};
+ if (hitDie === "d8" && bonus && abilities.includes(bonus)) result[bonus.toLowerCase() as Lowercase<Ability>] += 1;
+ return result;
+}
+export function validateBaseAbilityScores(mode: string, scores: AbilityScores) {
+ const values = abilities.map(a => scores[a.toLowerCase() as Lowercase<Ability>]);
+ if (!["MANUAL", "STANDARD_ARRAY", "POINT_BUY"].includes(mode)) throw new Error("Invalid ability score mode");
+ if (!values.every(v => Number.isInteger(v) && v >= 1 && v <= 20)) throw new Error("Ability scores must be whole numbers between 1 and 20");
+ if (mode === "STANDARD_ARRAY" && !validStandardArray(values)) throw new Error("Invalid Standard Array");
+ if (mode === "POINT_BUY" && !validPointBuy(values)) throw new Error("Point Buy requires base scores 8-15 costing at most 27 points");
+}
+export function getCreationAbilityScores(mode: string, base: AbilityScores, hitDie: unknown, bonus: unknown) {
+ validateHitDieChoice(hitDie, bonus);
+ validateBaseAbilityScores(mode, base);
+ const final = getFinalAbilityScores(base, hitDie, bonus as Ability | null);
+ if (Object.values(final).some(v => v > 20)) throw new Error("Final ability scores cannot exceed 20");
+ return final;
+}
