@@ -53,7 +53,7 @@ beforeAll(async () => {
  campaignId=campaign.id;
  const record=HomebrewElementalJutsu.find(r=>r.natures.length===1&&r.natures[0]==="FIRE"&&r.rank!=="S"&&(r.requiredNatures??[]).every(key=>key==="FIRE"));
  if(!record)throw new Error("Seed must contain an eligible basic Fire jutsu");
- const data={name:record.name,germanName:record.germanName,slug:record.slug,description:record.description||record.rawMarkdown,rank:record.rank??"E",chakraCost:record.chakraCost??0,range:record.range||"Self",duration:record.duration||"Instantaneous",actionType:record.actionType||"Action",requiredNatureKeys:JSON.stringify(record.requiredNatures??[])};
+ const data={name:record.name,germanName:record.germanName,slug:record.slug,description:record.rawMarkdown,rank:record.rank??"E",chakraCost:record.chakraCost??0,range:record.range||"Self",duration:record.duration||"Instantaneous",actionType:record.actionType||"Action",requiredNatureKeys:JSON.stringify(record.requiredNatures??[])};
  const fireLink={create:{chakraNatureId:"nature-FIRE"}};
  globalFire=(await database.client.jutsu.create({data:{...data,natures:fireLink}})).id;
  mixedSpecial=(await database.client.jutsu.create({data:{...data,slug:"mixed-special",natures:{create:[{chakraNatureId:"nature-FIRE"},{chakraNatureId:"nature-IRON_RELEASE"}]}}})).id;

@@ -20,7 +20,7 @@ const renderFilledCreator=()=>{
  fireEvent.change(screen.getByLabelText("Hintergrund"),{target:{value:"Mein Dorf"}});
  fireEvent.change(screen.getByLabelText("Beschreibung"),{target:{value:"Bleibt erhalten"}});next();
  fireEvent.click(screen.getByRole("button",{name:"CON – Konstitution als Talentbonus"}));
- fireEvent.change(screen.getByLabelText(/CON.*Konstitution/),{target:{value:"13"}});next();
+ fireEvent.change(screen.getByRole("spinbutton",{name:/CON.*Konstitution/}),{target:{value:"13"}});next();
  fireEvent.click(screen.getByRole("checkbox",{name:/^Stärke/}));fireEvent.click(screen.getByRole("checkbox",{name:/Heimlichkeit/}));next();
  fireEvent.change(screen.getByLabelText("Primäre Chakra-Natur"),{target:{value:"FIRE"}});
  fireEvent.change(screen.getByLabelText("Reservoir"),{target:{value:"LOW"}});
@@ -39,7 +39,7 @@ it("shows one safe toast after a rejected creation and retains every configured 
  const fd=createCharacter.mock.calls[0][1] as FormData;
  expect(fd.get("name")).toBe("Mein Shinobi");expect(fd.get("con")).toBe("13");expect(fd.get("hitDieAbilityBonus")).toBe("CON");expect(fd.get("reservoir")).toBe("LOW");expect(fd.get("regen")).toBe("EXPERT");expect(fd.getAll("jutsu")).toEqual(["fire-jutsu"]);
  fireEvent.click(screen.getByRole("button",{name:"2. Grundlagen"}));expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Mein Shinobi");expect((screen.getByLabelText("Beschreibung") as HTMLInputElement).value).toBe("Bleibt erhalten");next();
- expect((screen.getByLabelText(/CON.*Konstitution/) as HTMLInputElement).value).toBe("13");expect(screen.getByRole("button",{name:"CON – Konstitution als Talentbonus"}).getAttribute("aria-pressed")).toBe("true");next();
+ expect((screen.getByRole("spinbutton",{name:/CON.*Konstitution/}) as HTMLInputElement).value).toBe("13");expect(screen.getByRole("button",{name:"CON – Konstitution als Talentbonus"}).getAttribute("aria-pressed")).toBe("true");next();
  expect((screen.getByRole("checkbox",{name:/Heimlichkeit/}) as HTMLInputElement).checked).toBe(true);expect((screen.getByRole("checkbox",{name:/^Stärke/}) as HTMLInputElement).checked).toBe(true);next();
  expect((screen.getByLabelText("Reservoir") as HTMLSelectElement).value).toBe("LOW");expect((screen.getByLabelText("Primäre Chakra-Natur") as HTMLSelectElement).value).toBe("FIRE");next();
  expect((screen.getByRole("checkbox",{name:/Feuerstoß/}) as HTMLInputElement).checked).toBe(true);next();expect((screen.getByLabelText("Bewegung") as HTMLInputElement).value).toBe("35");

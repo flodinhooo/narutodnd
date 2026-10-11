@@ -40,7 +40,7 @@ D&D Beyond ist Referenz, nicht Projektspezifikation.
 
 Chakra, Reservoir, Kontrolle, Regeneration, Nature, Jutsu, Breakthrough Points, Limit Break, Exhaustion und Rest-Regeln bleiben Naruto-Systeme. Das bestehende Short Rest stellt volle HP wieder her (bis zweimal), statt Hit Dice auszugeben.
 
-Vorhandene, ausserhalb der Hit-Die-Aenderung liegende Inkonsistenzen: Creator-Auswahl von Regeneration/Kontrolle wird bisher nicht uebermittelt; Server verwendet TRAINED-Defaults. Initiative-Override ist im DM-Formular vorhanden, wird aber bisher weder gespeichert noch auf dem Sheet verwendet. Nicht automatisch geaendert.
+Die damalige Inkonsistenz bei Regeneration/Kontrolle wurde im Creator-UX-Pass behoben: Auswahlwerte werden übermittelt, validiert und gespeichert. Initiative-Override ist im DM-Formular vorhanden, wird aber bisher weder gespeichert noch auf dem Sheet verwendet. Dieser separate Punkt wurde nicht verändert.
 
 DM-Bonuskennzeichnung dokumentiert die urspruengliche D8-Wahl; nach administrativer Aenderung finaler Scores stellt sie keine rekonstruierbare historische Base-Verteilung dar.
 

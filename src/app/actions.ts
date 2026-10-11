@@ -94,7 +94,7 @@ export async function createCharacter(campaignId: string, fd: FormData): Promise
   return {ok: true, destination: `/campaign/${campaignId}`};
  } catch (error) {
   if (error instanceof CreationValidationError) return {ok: false, code: error.code, message: error.message, field: error.field};
-  if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2025", "P2034"].includes(error.code)) return {ok: false, code: "CONFLICT", message: "Deine Auswahl konnte nicht gespeichert werden. Bitte ?berpr?fe sie und versuche es erneut."};
+  if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2025", "P2034"].includes(error.code)) return {ok: false, code: "CONFLICT", message: "Deine Auswahl konnte nicht gespeichert werden. Bitte überprüfe sie und versuche es erneut."};
   console.error("Character creation failed", {campaignId, error});
   return {ok: false, code: "INTERNAL", message: creationFailureMessage};
  }
