@@ -1,0 +1,7 @@
+"use client";
+
+import Link from "next/link";
+
+export default function BestiaryError({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  return <main className="shell"><h1>Bestiary nicht verfügbar</h1><p role="alert">Die Bibliothek konnte nicht geladen werden. Prüfe deinen DM-Zugang zu dieser Kampagne und versuche es erneut.</p><div className="actions"><button className="button primary" onClick={retry}>Erneut versuchen</button><Link className="button ghost" href="/campaigns/access">Kampagnenzugang öffnen</Link></div></main>;
+}
