@@ -1,0 +1,11 @@
+{
+  "mode": "Built-in image_gen tool; one call per portrait, no source image or logo edits",
+  "output": "public/portraits/{shinobi,kunoichi,medic,merchant}.webp; 640x640, WebP quality 86",
+  "shinobi": "Create one square character portrait illustration for a Naruto-inspired tabletop RPG campaign app. Original generic young adult male shinobi, dark tied-back hair, calm alert expression, muted teal shinobi jacket and simple unmarked forehead protector, head and shoulders centered, generous safe margins around head for avatar crop. Elegant hand-painted anime concept art, clean face readability at small size, warm parchment and deep charcoal background, restrained gold accent light. No text, no lettering, no logos, no recognizable existing character, no watermark. This is a finished single portrait asset, not a sheet or collage.",
+  "otherPortraitPromptTemplate": "Create one square head-and-shoulders character portrait for a Naruto-inspired tabletop RPG campaign app. {subject}. Head centered, generous safe margins for avatar crop. Elegant hand-painted anime concept art, clean face readability at small size, warm parchment and deep charcoal softly textured background, restrained gold accent light, coherent professional portrait library. No text, lettering, logos, recognizable existing characters, watermark, sheet or collage.",
+  "subjects": {
+    "kunoichi": "Original generic adult female shinobi, shoulder-length dark auburn hair, confident composed expression, charcoal and plum shinobi clothing, simple unmarked forehead protector",
+    "medic": "Original generic adult female village medic, short dark hair, kind attentive expression, simple cream medical coat over muted sage clothing, small medical pouch, no forehead protector",
+    "merchant": "Original generic middle-aged male village merchant, warm friendly face, short beard, muted earth-tone kimono and simple travel scarf, no forehead protector"
+  }
+}

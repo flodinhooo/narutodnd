@@ -870,3 +870,9 @@ oder Karten-System wurde eingeführt.
 
 Vollständige Konfiguration, Speicherbetrieb, Bedienung, Grenzen und Ergebnisse:
 [branding-portraits.md](branding-portraits.md).
+
+Portrait-UX-Nachtrag: Vier generische Bildvorlagen sind lokal hinterlegt und
+auswählbar. Ein kompakter Einstieg öffnet das Portrait-Studio mit Galerie und
+eigenem Upload; das Bild steht grösser neben den Profildaten. Es gibt keine
+automatischen Bildzuweisungen. Aktueller Prüflauf: 443 Tests in 30 Dateien sowie
+Typecheck, ESLint, Build und sechs zusätzliche echte Browserprüfschritte erfolgreich.

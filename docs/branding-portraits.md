@@ -55,7 +55,7 @@ erstellte Charakter bestehen; die Meldung verweist zur erneuten Auswahl im Bogen
 Der Charakter muss nicht erneut erstellt werden.
 
 Character Sheet, NPC-/Sensei-Details und eigene Bestiary-Vorlagen enthalten dieselbe
-Komponente **Portraits und Varianten verwalten**:
+Komponente **Bild auswählen** (Portrait-Studio):
 
 1. Variante benennen, etwa Kind/Akademie, Genin, Chunin, Jonin oder eigener Name.
 2. Datei auswählen und Vorschau prüfen.
@@ -191,3 +191,30 @@ Inselkarte/freigestellte Insel, Reigan/Shiogakure, Kanezaki, Shioura und Naruto-
 Weltkarte. Shio no Kuni liegt östlich von Konoha, südlich des Blitzreichs und
 nordwestlich des Wasserreichs. Benannte Orte werden erst nach Bildprüfung als
 strukturierte idempotente Seeds mit vorhandenen Location-Beziehungen erfasst.
+
+## Generische Portraits und kompaktere Einbindung
+
+Vier eigens generierte Motive liegen als lokale WebP-Dateien unter
+`public/portraits/`: `shinobi.webp`, `kunoichi.webp`, `medic.webp`, `merchant.webp`.
+Sie sind öffentlich sichtbare generische Vorlagen und enthalten keine Kampagnendaten.
+Die Erstellung erfolgte mit dem eingebauten Imagegen-Tool; die Prompt-Spezifikation
+steht in [portrait-preset-prompts.json](portrait-preset-prompts.json).
+
+Das Profil zeigt ein grösseres Portrait neben Name und Eckdaten. Ein schmaler
+Bereich „Bild auswählen“ öffnet das native, tastaturbedienbare Portrait-Studio.
+Die Vorlagengalerie und der Bereich „Eigenes Bild“ sind getrennt auswählbar;
+gespeicherte Varianten sowie Zugriffsrechte sind eingeklappt. Das lange Formular
+belegt damit keinen Platz mehr im eigentlichen Charakter-/NPC-Profil.
+
+Erst „Vorlage übernehmen“ speichert die Auswahl als private, unabhängige WebP-Kopie
+und setzt sie als Standard. Der Server akzeptiert nur die vier fest definierten
+Preset-IDs; Dateipfade und fremde URLs sind ausgeschlossen. Rechte, Quoten,
+Versionsprüfung, Ersetzen und Entfernen verwenden die vorhandene Upload-Logik.
+Keine Änderung am Prisma-Schema und keine automatischen Zuweisungen an Kampagnen.
+
+Verifikation dieses Nachtrags: 443 Tests in 30 Dateien, Typecheck, ESLint und
+Production Build erfolgreich. Zwei neue Tests prüfen den ausdrücklichen Auswahl-
+und Speichervorgang sowie erlaubte Presets, Rechte und Standardwechsel. Sechs
+Edge-Browserprüfschritte auf separater Datenbank bestätigen Galerie, Laden aller
+vier Motive, Speicherung, direkte Aktualisierung im Profil, Tablet-Layout,
+Öffnen/Schliessen des Studios und weiterhin verfügbare Upload-Kontrollen.
