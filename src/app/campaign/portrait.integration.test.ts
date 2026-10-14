@@ -114,3 +114,14 @@ it("promotes the remaining portrait when removing the default", async () => {
   expect(await db.client.portrait.count({ where: { characterId: c.id, isDefault: true } })).toBe(1);
   await expect(portraitImage(original.id)).rejects.toThrow("nicht verfügbar");
 });
+it("imports only bundled presets through the same protected storage and makes them default", async () => {
+  actor("DM", campaignId, "preset-dm");
+  const c = await db.client.character.create({ data: { campaignId, name: "Preset" } });
+  await changePortrait(campaignId, "character", c.id, form("PRESET", { preset: "shinobi", label: "Shinobi" }));
+  await changePortrait(campaignId, "character", c.id, form("PRESET", { preset: "medic", label: "Medic" }));
+  const chosen = await db.client.portrait.findFirstOrThrow({ where: { characterId: c.id, isDefault: true } });
+  expect(chosen.label).toBe("Medic"); expect((await portraitImage(chosen.id)).status).toBe(200);
+  expect(await db.client.portrait.count({ where: { characterId: c.id, isDefault: true } })).toBe(1);
+  await expect(changePortrait(campaignId, "character", c.id, form("PRESET", { preset: "../../secret" }))).rejects.toThrow("nicht verfügbar");
+  actor("PLAYER", campaignId, "other"); await expect(changePortrait(campaignId, "character", c.id, form("PRESET", { preset: "merchant" }))).rejects.toThrow("Bearbeitungsrechte");
+});

@@ -50,4 +50,19 @@
 .portrait-manager input { max-width: 100%; min-width: 0; }.portrait-manager .check input { width: auto; }
 .portrait-manager button:not(.button) { border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; background: transparent; color: var(--ink); cursor: pointer; }
 .portrait-manager button:disabled { opacity: .55; cursor: default; }
+.portrait-manager-compact { padding: 0; margin: 14px 0 28px; }
+.portrait-editor-launch { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 8px; }
+.portrait-editor-launch p { margin: 5px 0 0; font-size: 13px; }
+.portrait-dialog { width: min(880px, calc(100vw - 32px)); max-height: 90dvh; overflow: auto; padding: 24px; border: 1px solid var(--gold); border-radius: 14px; background: var(--panel); color: var(--ink); }
+.portrait-dialog::backdrop { background: #050909cc; backdrop-filter: blur(5px); }
+.portrait-dialog { margin: auto; position: fixed; inset: 0; }.portrait-variants-section { margin-top: 18px; }.portrait-variants-section summary { cursor: pointer; color: var(--muted); }
+.portrait-dialog-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }.portrait-dialog-heading h2 { margin: 0; font-size: 28px; }
+.portrait-dialog .portrait { width: 120px; height: 144px; }.portrait-dialog .form { margin-top: 16px; padding: 16px 0; }
+.portrait-source-switch { display: flex; gap: 8px; margin: 20px 0; }.portrait-source-switch button[aria-pressed=true] { background: var(--gold); color: var(--bg); }
+.portrait-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0 24px; }
+.portrait-preset-grid button { display: grid; gap: 10px; padding: 6px!important; text-align: left; min-width: 0; }.portrait-preset-grid button[aria-pressed=true] { outline: 3px solid var(--gold); outline-offset: 2px; }
+.portrait-preset-grid img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 7px; }.portrait-preset-grid span { padding: 3px 6px; }
+.portrait-access { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 13px; }
+.sheet-head .portrait, .topbar .portrait { width: 148px; height: 172px; border-radius: 12px; float: left; margin: 0 24px 16px 0; }
+@media(max-width: 600px) { .portrait-preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.portrait-dialog { padding: 16px; }.sheet-head .portrait, .topbar .portrait { width: 112px; height: 136px; margin-right: 16px; } }
 @media(max-width: 550px) { .brand-logo strong { font-size: 18px; }.brand-logo img { width: 44px; height: 44px; }.portrait-manager .form { padding: 12px; } }

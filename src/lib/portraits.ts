@@ -2,12 +2,16 @@ import { prisma } from "./prisma";
 import { portraitSubject, portraitOwnerKey } from "./portrait-access";
 import { portraitStorage } from "./portrait-storage";
 import { PortraitError, processPortrait } from "./portrait-image";
+import { portraitPresets } from "./portrait-presets";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export const portraitView = { id: true, label: true, version: true, isDefault: true, width: true, height: true, byteSize: true } as const;
 const uploads = new Map<string, { count: number; until: number }>();
 export async function changePortrait(campaignId: string, kind: string, entityId: string, fd: FormData) {
   const subject = await portraitSubject(campaignId, kind, entityId, true);
-  const op = String(fd.get("op")), id = String(fd.get("id") || ""), version = Number(fd.get("version"));
+  const presetRequest = fd.get("op") === "PRESET";
+  const op = presetRequest ? "UPLOAD" : String(fd.get("op")), id = String(fd.get("id") || ""), version = Number(fd.get("version"));
   const storage = portraitStorage();
   if (op === "OWNER") {
     if (kind !== "character" || subject.actor.role !== "DM" || !("characterId" in subject.scope)) throw new PortraitError("Besitzer kann hier nicht geändert werden.", 403);
@@ -27,7 +31,13 @@ export async function changePortrait(campaignId: string, kind: string, entityId:
     if (rate && rate.until > now && rate.count >= 20) throw new PortraitError("Zu viele Uploads. Bitte in zehn Minuten erneut versuchen.", 429);
     for (const [actor, value] of uploads) if (value.until <= now) uploads.delete(actor);
     uploads.set(subject.actor.id, { until: rate && rate.until > now ? rate.until : now + 600000, count: rate && rate.until > now ? rate.count + 1 : 1 });
-    const file = fd.get("file");
+    let file = fd.get("file");
+    if (presetRequest) {
+      const preset = portraitPresets.find(p => p.id === fd.get("preset"));
+      if (!preset) throw new PortraitError("Diese Bildvorlage ist nicht verfügbar.");
+      const bytes = await readFile(join(process.cwd(), "public", "portraits", `${preset.id}.webp`));
+      file = new File([new Uint8Array(bytes)], "portrait.webp", { type: "image/webp" });
+    }
     if (!(file instanceof File)) throw new PortraitError("Bitte ein Bild auswählen.");
     image = await processPortrait(new Uint8Array(await file.arrayBuffer()), file.type, fd.get("crop") === "true" ? { x: Number(fd.get("x")), y: Number(fd.get("y")) } : undefined);
     key = await storage.put(image.data);
@@ -47,11 +57,12 @@ export async function changePortrait(campaignId: string, kind: string, entityId:
         const count = await tx.portrait.count({ where: { campaignId, ...subject.scope } });
         const size = await tx.portrait.aggregate({ where: { campaignId }, _sum: { byteSize: true }, _count: true });
         if ((!id && count >= 10) || size._count >= 2000 || (size._sum.byteSize ?? 0) + image!.byteSize > 100 * 1024 * 1024) throw new PortraitError("Portrait-Speicherlimit erreicht. Nicht mehr benötigte Bilder entfernen.", 413);
+        if (presetRequest) await tx.portrait.updateMany({ where: { campaignId, ...subject.scope, isDefault: true, ...(id ? { id: { not: id } } : {}) }, data: { isDefault: false, version: { increment: 1 } } });
         if (current) {
-          const changed = await tx.portrait.updateMany({ where: { id, version }, data: { storageKey: key!, mimeType: image!.mimeType, width: image!.width, height: image!.height, byteSize: image!.byteSize, label, version: { increment: 1 } } });
+          const changed = await tx.portrait.updateMany({ where: { id, version }, data: { storageKey: key!, mimeType: image!.mimeType, width: image!.width, height: image!.height, byteSize: image!.byteSize, label, ...(presetRequest ? { isDefault: true } : {}), version: { increment: 1 } } });
           if (!changed.count) throw new PortraitError("Portrait inzwischen geändert.", 409);
           obsolete = current.storageKey;
-        } else await tx.portrait.create({ data: { campaignId, ...subject.scope, storageKey: key!, mimeType: image!.mimeType, width: image!.width, height: image!.height, byteSize: image!.byteSize, label, isDefault: count === 0 } });
+        } else await tx.portrait.create({ data: { campaignId, ...subject.scope, storageKey: key!, mimeType: image!.mimeType, width: image!.width, height: image!.height, byteSize: image!.byteSize, label, isDefault: presetRequest || count === 0 } });
       } else if (op === "DEFAULT") {
         await tx.portrait.updateMany({ where: { campaignId, ...subject.scope, isDefault: true }, data: { isDefault: false, version: { increment: 1 } } });
         await tx.portrait.update({ where: { id }, data: { isDefault: true, version: { increment: 1 } } });
