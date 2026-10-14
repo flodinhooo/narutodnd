@@ -1,3 +1,4 @@
+export const metadata = { title: "Welt" };
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
