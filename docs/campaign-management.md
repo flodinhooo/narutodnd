@@ -840,3 +840,33 @@ ebenfalls geprüft werden; Labels und Fokusverhalten sind automatisiert abgedeck
 Mehrere DMs gleichen weiterhin per Reload ab; es gibt keinen Live-Push und keinen
 automatischen Character-Sheet-Abgleich. Individuelle Missionsbesitzer und komplexe
 ODER-Zielbedingungen bleiben zukünftige Erweiterungen.
+
+## Branding und Portraits – 15.10.2026
+
+Das bereitgestellte Shiogakure-Original wurde unverändert übernommen und für
+Header, helle/dunkle Varianten, Favicon, Apple/App-Icons und Social-Metadaten
+zugeschnitten/skaliert. Projektidentität: **Shio no Kuni – Naruto D&D**.
+
+Eine gemeinsame geschützte Portrait-Verwaltung ergänzt Character Creator/Sheets,
+NPCs/Sensei, eigene Enemy Templates, Listen, Teams, Missions-NPCs und Combat-
+Teilnehmer. Enthalten sind Vorschau, optionaler Ausschnitt, Varianten, Standard,
+Ersetzen/Entfernen, Fallback und serverseitige Inhalts-/Grössenprüfung.
+Bestehende URL-Felder bleiben erhalten. NPC und verknüpfter Character teilen
+dieselbe Bildsammlung; beim Verknüpfen werden vorhandene Varianten zusammengeführt.
+
+Migration `20261014220000_portraits` ergänzt `Portrait` und einen nullable
+gehashten Besitzerbezug für Character. Sie ist lokal nach Sicherung angewendet;
+alle 39 bisherigen Tabellen unverändert. Alle 14 Migrationen sind isoliert geprüft,
+lokal aktuell und ohne Schemaabweichung. Zwei Seed-Läufe erhalten 589 globale
+Jutsu (alle 579 registrierten Seeds), 20 Gegner und sechs Missionsvorlagen ohne
+Änderung der Kampagneninhalte. Keine Kartenmodelle/Location-Seeds ergänzt.
+
+**441 Tests in 29 Dateien**, Typecheck, ESLint, Production Build und Prisma
+Validation erfolgreich; zusätzlich neun echte Edge-Browserprüfschritte auf einer
+separaten DB-Kopie. Produktion benötigt einen privaten persistenten Portrait-
+Speicher. Besitzerrechte beruhen auf dem bestehenden browsergebundenen Zugang;
+nach Neuanmeldung kann der DM die Zuordnung erneuern. Kein neues Benutzerkonto-
+oder Karten-System wurde eingeführt.
+
+Vollständige Konfiguration, Speicherbetrieb, Bedienung, Grenzen und Ergebnisse:
+[branding-portraits.md](branding-portraits.md).
