@@ -1,0 +1,39 @@
+"use client";
+
+import Portrait from "./Portrait";
+import { useState } from "react";
+import { combatConditions, conditionSchema, combatSnapshotSchema, encounterSides, type RunView, type CombatCommand } from "@/lib/encounters";
+import { enemySkillLabels } from "@/lib/enemy-templates";
+import { getAbilityModifier, getChakraExhaustionState } from "@/lib/rules";
+
+type Participant = RunView["participants"][number];
+const signed = (value: number) => value >= 0 ? `+${value}` : String(value);
+export default function CombatParticipant({ participant: p, campaignId, active, preparing, disabled, send }: { participant: Participant; campaignId: string; active: boolean; preparing: boolean; disabled: boolean; send: (command: CombatCommand) => void }) {
+  const snapshot = combatSnapshotSchema.parse(p.snapshot), conditions = conditionSchema.parse(p.conditions);
+  const [amount, setAmount] = useState("1"), [condition, setCondition] = useState<keyof typeof combatConditions>("PRONE");
+  const [initiativeEdit, setInitiativeEdit] = useState({ baseline: p.initiative, value: String(p.initiative ?? "") });
+  const [notesEdit, setNotesEdit] = useState({ baseline: p.notes, value: p.notes });
+  const initiative = initiativeEdit.baseline === p.initiative ? initiativeEdit.value : String(p.initiative ?? "");
+  const notes = notesEdit.baseline === p.notes ? notesEdit.value : p.notes;
+  const resource = (kind: "DAMAGE" | "HEAL" | "SPEND_CHAKRA" | "RESTORE_CHAKRA") => send({ kind, participantId: p.id, amount: Number(amount) });
+  return <article className={`panel combat-participant ${active ? "is-active" : ""}`} aria-current={active ? "step" : undefined}>
+    <header><span className="tag">{active ? "AM ZUG · " : ""}{encounterSides[p.side]} · Initiative {p.initiative ?? "–"}</span><Portrait campaignId={campaignId} kind={p.sourceKind === "ENEMY" ? "enemy" : p.sourceKind === "NPC" ? "npc" : "character"} entityId={p.sourceId} name={p.name} /><h2>{p.name}</h2><p className="muted">{p.maxHp === null ? "Erzählteilnehmer" : `AC ${p.ac} · Initiativebonus ${signed(p.initiativeBonus)}`}</p></header>
+    <div className="resource-grid"><div className="resource hp"><small>HP</small><strong>{p.currentHp ?? "–"}{p.maxHp !== null && <i> / {p.maxHp}</i>}</strong></div><div className="resource chakra"><small>CHAKRA</small><strong>{p.currentChakra ?? "–"}{p.maxChakra !== null && <i> / {p.maxChakra}</i>}</strong>{p.maxChakra !== null && <small>{({CHAKRA_EMPTY:"Leer (−3)",CRITICALLY_EXHAUSTED:"Kritisch erschöpft (−2)",EXHAUSTED:"Erschöpft (−1)",STRAINED:"Beansprucht",NORMAL:"Normal"})[getChakraExhaustionState(p.currentChakra!,p.maxChakra).key]}</small>}</div></div>
+    <p className="combat-markers">{p.defeated && <span>Besiegt</span>}{p.unconscious && <span>Bewusstlos</span>}{p.severelyWounded && <span>Schwer verwundet</span>}{conditions.map(c => <span key={c}>{combatConditions[c]}</span>)}</p>
+    <fieldset className="people-fields" disabled={disabled}>
+      {preparing && p.maxHp !== null && <form className="combat-inline" onSubmit={e => { e.preventDefault(); send({ kind: "INITIATIVE", participantId: p.id, value: Number(initiative) }); }}><label>Initiative (Gesamtwert)<input type="number" min={-100} max={100} required value={initiative} onChange={e => setInitiativeEdit({ baseline: p.initiative, value: e.target.value })} /></label><button className="button ghost">Initiative setzen</button><button type="button" className="button ghost" onClick={() => send({ kind: "ROLL_INITIATIVE", participantId: p.id })}>W20 würfeln</button></form>}
+      {p.maxHp !== null && <><label>Betrag<input type="number" min={1} max={1000000} required value={amount} onChange={e => setAmount(e.target.value)} /></label><div className="combat-buttons"><button className="button ghost" type="button" onClick={() => resource("DAMAGE")}>Schaden</button><button className="button ghost" type="button" onClick={() => resource("HEAL")}>Heilen</button>{p.maxChakra !== null && <><button className="button ghost" type="button" onClick={() => resource("SPEND_CHAKRA")}>Chakra verbrauchen</button><button className="button ghost" type="button" onClick={() => resource("RESTORE_CHAKRA")}>Chakra regenerieren</button></>}</div></>}
+      <div className="combat-buttons"><button type="button" className="button ghost" onClick={() => send({ kind: "FLAGS", participantId: p.id, defeated: !p.defeated, unconscious: p.unconscious })}>{p.defeated ? "Besiegt-Markierung aufheben" : "Als besiegt markieren"}</button><button type="button" className="button ghost" onClick={() => send({ kind: "FLAGS", participantId: p.id, defeated: p.defeated, unconscious: !p.unconscious })}>{p.unconscious ? "Bewusstsein wiederherstellen" : "Als bewusstlos markieren"}</button></div>
+      <div className="combat-inline"><label>Zustand<select value={condition} onChange={e => setCondition(e.target.value as typeof condition)}>{Object.entries(combatConditions).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label><button type="button" className="button ghost" disabled={conditions.includes(condition)} onClick={() => send({ kind: "CONDITIONS", participantId: p.id, conditions: [...conditions, condition] })}>Zustand hinzufügen</button></div>
+      <div className="combat-buttons">{conditions.map(c => <button type="button" className="button ghost" key={c} onClick={() => send({ kind: "CONDITIONS", participantId: p.id, conditions: conditions.filter(v => v !== c) })}>{combatConditions[c]} entfernen</button>)}</div>
+      <form onSubmit={e => { e.preventDefault(); send({ kind: "PARTICIPANT_NOTES", participantId: p.id, notes }); }}><label>Kampfnotizen für {p.name}<textarea maxLength={10000} value={notes} onChange={e => setNotesEdit({ baseline: p.notes, value: e.target.value })} /></label><button className="button ghost">Teilnehmernotizen speichern</button></form>
+    </fieldset>
+    <details className="combat-details"><summary>Vollständige Teilnehmerdetails (Run-Snapshot)</summary><p className="people-prose">{snapshot.description}</p><p>Stufe {snapshot.level} · Bewegung {snapshot.speed} ft</p>{snapshot.attributes && <div className="ability-grid">{Object.entries(snapshot.attributes).map(([key, value]) => <div className="ability" key={key}><small>{key.toUpperCase()}</small><b>{value}</b><span>{signed(getAbilityModifier(value))}</span></div>)}</div>}
+      <h3>Rettungswürfe & Fertigkeiten</h3><p>{snapshot.savingThrows.map(s => `${s.ability} ${signed(s.bonus)}`).join(" · ") || "Keine Kampfattribute"}</p><p>{snapshot.skills.map(s => `${enemySkillLabels[s.skill as keyof typeof enemySkillLabels] ?? s.skill} ${signed(s.bonus)}`).join(" · ")}</p>
+      {snapshot.attacks.map((a, i) => <div key={i}><h3>{a.name}</h3><p>{signed(a.bonus)} · {a.damageDice} {a.damageType} · {a.range}</p><p>{a.description}</p></div>)}{snapshot.abilities.map((a, i) => <div key={i}><h3>{a.name}</h3><p className="people-prose">{a.description}</p></div>)}
+      {snapshot.maxChakra !== null && <><h3>Chakra-Ausbildung</h3><p>{snapshot.natures.map(n => n.name).join(", ") || "Keine Natur"} · Reservoir {snapshot.reservoir} · Kontrolle {snapshot.controlRank} · Regeneration {snapshot.regenRank}</p></>}
+      {snapshot.jutsu.map(j => <details key={j.id}><summary>{j.germanName || j.name} · Rang {j.rank} · {j.chakraCost} Chakra</summary><p>{j.actionType} · {j.range} · {j.duration}</p>{j.damageDice && <p>{j.damageDice} {j.damageType}</p>}{j.saveAbility && <p>Rettungswurf: {j.saveAbility}</p>}{j.requiresConcentration && <p>Konzentration</p>}<p className="people-prose">{j.description}</p></details>)}
+      <h3>Resistenzen & Taktik</h3><p className="people-prose">{snapshot.resistances || "Keine besonderen Resistenzen."}</p><p className="people-prose">{snapshot.tactics}</p><p className="muted">Angriffe, Jutsu-Effekte, Konzentration und Zustandsdauern entscheidet der DM. Ressourcenänderungen über die Aktionen oben erfassen.</p>
+    </details>
+  </article>;
+}
