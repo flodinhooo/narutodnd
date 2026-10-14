@@ -1,5 +1,5 @@
 export type JutsuSeedOrigin = "CANON" | "SHIO_HOMEBREW" | "FOUNDATION" | "DM_CUSTOM";
-export type JutsuSeedPool = "ELEMENTAL" | "CANON" | "FOUNDATION" | "UZUMAKI" | "CHARACTER_SIGNATURE";
+export type JutsuSeedPool = "ELEMENTAL" | "CANON" | "FOUNDATION" | "UZUMAKI" | "CHARACTER_SIGNATURE" | "CLAN_HIDEN";
 export type JutsuSeedRecord = {
   source: JutsuSeedOrigin; pool: JutsuSeedPool; slug: string; name: string;
   germanName?: string | null; englishName?: string | null; japaneseName?: string | null;

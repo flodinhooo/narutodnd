@@ -13,7 +13,9 @@ export async function GET(request: Request, { params }: Context) {
     }
     const portraits = await prisma.portrait.findMany({ where: { campaignId, ...s.scope }, select: portraitView, orderBy: { createdAt: "asc" } });
     const owners = s.actor.role === "DM" && kind === "character" && "characterId" in s.scope ? await prisma.campaignAccessSession.findMany({ where: { campaignId, role: "PLAYER", expiresAt: { gt: new Date() } }, select: { id: true }, take: 100 }) : [];
-    return Response.json({ portraits, canEdit: s.canEdit, owners: owners.map(o => ({ id: portraitOwnerKey(o.id) })) }, { headers: { "Cache-Control": "private, no-store" } });
+    const canAssignOwner = s.actor.role === "DM" && kind === "character" && "characterId" in s.scope;
+    const currentOwner = canAssignOwner ? (await prisma.character.findFirst({ where: { id: entityId, campaignId }, select: { portraitOwnerKey: true } }))?.portraitOwnerKey : null;
+    return Response.json({ portraits, canEdit: s.canEdit, accessHandle: portraitOwnerKey(s.actor.id).slice(0, 8), canAssignOwner, currentOwner, owners: owners.map(o => ({ id: portraitOwnerKey(o.id) })) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (e) { return portraitFailure(e); }
 }
 export async function POST(request: Request, { params }: Context) {
