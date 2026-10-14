@@ -1,4 +1,5 @@
 ﻿"use server";
+import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { Reservoir, RegenRank, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -34,7 +35,8 @@ const creationText = (fd: FormData, key: string, fallback = "") => {
 };
 export async function createCharacter(campaignId: string, fd: FormData): Promise<CharacterCreationResult> {
  try {
-  try {await requireCampaign(campaignId);} catch (error) {
+  let creator: Awaited<ReturnType<typeof requireCampaign>> | undefined;
+  try {creator = await requireCampaign(campaignId);} catch (error) {
    if (error instanceof Error && error.message === "Unauthorized") throw new CreationValidationError("ACCESS", "Dein Kampagnenzugang ist abgelaufen. Bitte melde dich erneut an.");
    throw error;
   }
@@ -75,13 +77,14 @@ export async function createCharacter(campaignId: string, fd: FormData): Promise
   const maxHp = calculateMaxHp(level, con, hitDie, hpLevels);
   const max = calculateMaxChakra(level, con, wis, reservoir as Reservoir);
   const background=creationText(fd,"background"),alignment=creationText(fd,"alignment"),description=creationText(fd,"description");
-  await prisma.$transaction(async tx => {
+  const characterId = await prisma.$transaction(async tx => {
    const chakraNature = await tx.chakraNature.findUnique({where: natureId ? {id: natureId} : {key: natureKey}});
    if (!chakraNature?.playerSelectable || (natureKey && chakraNature.key !== natureKey)) throw new CreationValidationError("NATURE", natureUnavailableMessage, "nature");
    const selected = await tx.jutsu.findMany({where: {id: {in: jutsu}, rank: {not: "S"}, OR: [{campaignId: null}, {campaignId}]}, include: {natures: {include: {nature: true}}}});
    if (selected.length !== jutsu.length || selected.some(item => !isStartingJutsuAllowed(item, campaignId, chakraNature.key))) throw new CreationValidationError("JUTSU", jutsuUnavailableMessage, "jutsu");
    const character = await tx.character.create({data: {
     campaignId, name, level, background, alignment, description, speed, ...scores,
+    portraitOwnerKey: creator?.role === "PLAYER" ? createHash("sha256").update(creator.id).digest("hex") : null,
     hpLevels: {create: hpLevels}, hitDie, hitDieAbilityBonus: hitDieAbilityBonus as string | null,
     maxHp, currentHp: maxHp, acOverride: null, currentChakra: max, reservoir: reservoir as Reservoir,
     regenRank: regenRank as RegenRank, controlRank: controlRank as RegenRank,
@@ -90,8 +93,9 @@ export async function createCharacter(campaignId: string, fd: FormData): Promise
     skills: {create: startingSkills.map(skill => ({skill, proficiency: "PROFICIENT"}))},
    }});
    if (jutsu.length) await tx.characterJutsu.createMany({data: jutsu.map(jutsuId => ({characterId: character.id, jutsuId}))});
+   return character.id;
   });
-  return {ok: true, destination: `/campaign/${campaignId}`};
+  return {ok: true, destination: fd.get("openSheet") === "true" ? `/campaign/${campaignId}/characters/${characterId}` : `/campaign/${campaignId}`};
  } catch (error) {
   if (error instanceof CreationValidationError) return {ok: false, code: error.code, message: error.message, field: error.field};
   if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2003", "P2025", "P2034"].includes(error.code)) return {ok: false, code: "CONFLICT", message: "Deine Auswahl konnte nicht gespeichert werden. Bitte überprüfe sie und versuche es erneut."};

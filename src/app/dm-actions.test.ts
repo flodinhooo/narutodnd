@@ -1,5 +1,5 @@
 import {beforeEach, expect, it, vi} from "vitest";
-const {prisma,requireCampaign}=vi.hoisted(()=>({requireCampaign:vi.fn(),prisma:{character:{findFirst:vi.fn(),update:vi.fn()},$transaction:vi.fn()}}));
+const {prisma,requireCampaign}=vi.hoisted(()=>({requireCampaign:vi.fn(),prisma:{character:{findFirst:vi.fn(),update:vi.fn()},npc:{updateMany:vi.fn()},$transaction:vi.fn()}}));
 vi.mock("@/lib/session",()=>({requireCampaign}));
 vi.mock("@/lib/prisma",()=>({prisma}));
 vi.mock("@/lib/rules",async()=>await import("../lib/rules"));

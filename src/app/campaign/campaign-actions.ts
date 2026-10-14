@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireCampaign } from "@/lib/session";
 import { z } from "zod";
+import { EncounterError } from "@/lib/action-error";
 
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 const customSchema=z.object({name:z.string().trim().min(1),rank:z.nativeEnum(JutsuRank),chakraCost:z.coerce.number().int().min(0),description:z.string().trim().min(1),japaneseName:z.string().trim().optional(),range:z.string().trim().optional(),duration:z.string().trim().optional(),actionType:z.string().trim().optional(),attackType:z.string().trim().optional(),damageDice:z.string().trim().optional(),damageType:z.string().trim().optional(),saveAbility:z.string().trim().optional(),requiresConcentration:z.boolean().default(false)});
@@ -14,7 +15,25 @@ export async function createCustomJutsu(campaignId:string,fd:FormData){await req
 export async function updateCustomJutsu(campaignId:string,jutsuId:string,fd:FormData){await requireCampaign(campaignId,true);const current=await prisma.jutsu.findFirst({where:{id:jutsuId,campaignId,origin:JutsuOrigin.DM_CUSTOM}});if(!current)throw new Error("Custom-Jutsu nicht gefunden");const {parsed,natureIds,prerequisiteIds}=await customData(campaignId,fd);await prisma.$transaction(async tx=>{await tx.jutsuChakraNature.deleteMany({where:{jutsuId}});await tx.jutsuPrerequisite.deleteMany({where:{jutsuId}});await tx.jutsu.update({where:{id:jutsuId},data:{name:parsed.name,japaneseName:parsed.japaneseName||null,description:parsed.description,rank:parsed.rank,chakraCost:parsed.chakraCost,range:parsed.range||"Self",duration:parsed.duration||"Instantaneous",actionType:parsed.actionType||"Action",attackType:parsed.attackType||null,damageDice:parsed.damageDice||null,damageType:parsed.damageType||null,saveAbility:parsed.saveAbility||null,requiresConcentration:parsed.requiresConcentration,natures:{create:natureIds.map(chakraNatureId=>({chakraNatureId}))},prerequisites:{create:prerequisiteIds.map(prerequisiteJutsuId=>({prerequisiteJutsuId}))}}})});revalidatePath(`/campaign/${campaignId}/jutsu-library`);}
 export async function deleteCustomJutsu(campaignId:string,jutsuId:string){await requireCampaign(campaignId,true);const current=await prisma.jutsu.findFirst({where:{id:jutsuId,campaignId,origin:JutsuOrigin.DM_CUSTOM}});if(!current)throw new Error("Custom-Jutsu nicht gefunden");await prisma.$transaction([prisma.characterJutsu.deleteMany({where:{jutsuId}}),prisma.jutsuPrerequisite.deleteMany({where:{OR:[{jutsuId},{prerequisiteJutsuId:jutsuId}]}}),prisma.jutsuChakraNature.deleteMany({where:{jutsuId}}),prisma.jutsu.delete({where:{id:jutsuId}})]);revalidatePath(`/campaign/${campaignId}/jutsu-library`);}
 export async function setJutsuLibraryAccess(campaignId: string, value: JutsuLibraryAccess) { await requireCampaign(campaignId, true); await prisma.campaign.update({ where: { id: campaignId }, data: { jutsuLibraryAccess: value } }); revalidatePath(`/campaign/${campaignId}`); }
-export async function createGameSession(campaignId: string, fd: FormData) { await requireCampaign(campaignId, true); const count = await prisma.gameSession.count({ where: { campaignId } }); await prisma.gameSession.create({ data: { campaignId, number: count + 1, title: text(fd, "title") || `Session ${count + 1}`, summary: text(fd, "summary"), playerNotes: text(fd, "playerNotes"), dmNotes: text(fd, "dmNotes") } }); revalidatePath(`/campaign/${campaignId}/sessions`); }
-export async function updateGameSession(campaignId: string, sessionId: string, fd: FormData) { await requireCampaign(campaignId, true); await prisma.gameSession.updateMany({ where: { id: sessionId, campaignId }, data: { title: text(fd, "title"), summary: text(fd, "summary"), playerNotes: text(fd, "playerNotes"), dmNotes: text(fd, "dmNotes"), status: text(fd, "status") as GameSessionStatus } }); revalidatePath(`/campaign/${campaignId}/sessions/${sessionId}`); }
+export async function createGameSession(campaignId: string, fd: FormData) {
+ await requireCampaign(campaignId, true);
+ const parsed = z.object({title:z.string().trim().min(1).max(200),summary:z.string().max(10000),playerNotes:z.string().max(10000),dmNotes:z.string().max(10000)}).safeParse(Object.fromEntries(["title","summary","playerNotes","dmNotes"].map(key=>[key,text(fd,key)])));
+ if (!parsed.success) throw new EncounterError("Bitte Titel und Textlängen der Session prüfen.");
+ const session = await prisma.$transaction(async tx => {
+  const latest = await tx.gameSession.aggregate({where:{campaignId},_max:{number:true}});
+  return tx.gameSession.create({data:{campaignId,number:(latest._max.number??0)+1,...parsed.data}});
+ });
+ revalidatePath(`/campaign/${campaignId}`,"layout");
+ return session.id;
+}
+export async function updateGameSession(campaignId: string, sessionId: string, fd: FormData) {
+ await requireCampaign(campaignId, true);
+ const data=z.object({title:z.string().trim().min(1).max(200),summary:z.string().max(10000),playerNotes:z.string().max(10000),dmNotes:z.string().max(10000),status:z.nativeEnum(GameSessionStatus),version:z.coerce.number().int().positive()}).safeParse(Object.fromEntries(["title","summary","playerNotes","dmNotes","status","version"].map(key=>[key,text(fd,key)])));
+ if(!data.success)throw new EncounterError("Ungültige Session-Daten. Bitte Pflichtfelder, Status und Version prüfen.");
+ const {version,...values}=data.data;
+ const result=await prisma.gameSession.updateMany({where:{id:sessionId,campaignId,version},data:{...values,version:{increment:1}}});
+ if(result.count!==1)throw new EncounterError("Session wurde inzwischen geändert. Bitte neu laden.");
+ revalidatePath(`/campaign/${campaignId}`,"layout");
+}
 export async function createLocation(campaignId: string, fd: FormData) { await requireCampaign(campaignId, true); await prisma.location.create({ data: { campaignId, slug: text(fd, "slug"), name: text(fd, "name"), type: text(fd, "type") as LocationType, shortDescription: text(fd, "shortDescription"), description: text(fd, "description"), playerVisible: fd.get("playerVisible") === "on", parentId: text(fd, "parentId") || null } }); revalidatePath(`/campaign/${campaignId}/world`); }
 export async function updateLocation(campaignId: string, locationId: string, fd: FormData) { await requireCampaign(campaignId, true); await prisma.location.updateMany({ where: { id: locationId, campaignId }, data: { name: text(fd, "name"), description: text(fd, "description"), shortDescription: text(fd, "shortDescription"), playerVisible: fd.get("playerVisible") === "on", type: text(fd, "type") as LocationType } }); revalidatePath(`/campaign/${campaignId}/world`); }

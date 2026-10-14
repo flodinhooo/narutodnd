@@ -41,6 +41,7 @@ export async function updateCharacter(campaignId: string, characterId: string, s
    breakthroughPoints: Math.max(0, Number(fd.get("breakthroughPoints"))),
   };
   await tx.character.update({where: {id: old.id}, data});
+  await tx.npc.updateMany({where: {characterId: old.id, campaignId}, data: {name: data.name}});
  });
  redirectBack(campaignId, characterId);
 }

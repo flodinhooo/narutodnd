@@ -1,5 +1,6 @@
 ﻿"use client";
-import {useMemo, useRef, useState, useTransition, type FormEvent} from "react";
+import Image from "next/image";
+import {useEffect, useMemo, useRef, useState, useTransition, type FormEvent} from "react";
 import {useRouter} from "next/navigation";
 import {toast} from "react-toastify";
 import {abilityLabels, skillLabels, creatorOptionLabels} from "@/lib/creator-labels";
@@ -90,6 +91,9 @@ export default function Creator({campaignId, natures, jutsu}: {
     })[]
 }) {
     const router = useRouter();
+    const [portrait, setPortrait] = useState<File | null>(null);
+    const [portraitPreview, setPortraitPreview] = useState("");
+    useEffect(() => () => { if (portraitPreview) URL.revokeObjectURL(portraitPreview); }, [portraitPreview]);
     const [pending, startTransition] = useTransition();
     const submitting = useRef(false);
     const showError = (message: string) => {
@@ -102,10 +106,19 @@ export default function Creator({campaignId, natures, jutsu}: {
         if (submitting.current) return;
         submitting.current = true;
         const fd = new FormData(event.currentTarget);
+        if (portrait) fd.set("openSheet", "true");
         startTransition(async () => {
             try {
                 const result = await createCharacter(campaignId, fd);
-                if (result.ok) router.push(result.destination);
+                if (result.ok) {
+                    if (portrait) {
+                        const id = result.destination.split("/").at(-1);
+                        const upload = new FormData(); upload.set("op", "UPLOAD"); upload.set("label", "Standard"); upload.set("file", portrait);
+                        try { const response = await fetch(`/api/campaign/${campaignId}/portraits/character/${id}`, { method: "POST", body: upload }); if (!response.ok) { const data = await response.json(); showError(`Charakter erstellt. Portrait bitte im Bogen erneut speichern: ${data.error}`); } }
+                        catch { showError("Charakter erstellt. Portrait-Upload nicht bestätigt; bitte im Charakterbogen prüfen."); }
+                    }
+                    router.push(result.destination);
+                }
                 else showError(result.message);
             } catch {showError(creationFailureMessage);}
             finally {submitting.current = false;}
@@ -159,6 +172,7 @@ export default function Creator({campaignId, natures, jutsu}: {
     return <main className="shell narrow creator"><a href={`/campaign/${campaignId}`} className="back"> Kampagne</a>
         <div className="eyebrow">CHARAKTERERSTELLUNG</div>
         <h1>Gestalte deinen Shinobi.</h1>
+        <section className="panel form"><h2>Portrait (optional)</h2><label>Bild vom Gerät auswählen<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => { const file = e.target.files?.[0]; if (portraitPreview) URL.revokeObjectURL(portraitPreview); setPortraitPreview(""); setPortrait(null); if (file && file.size <= 5 * 1024 * 1024) { setPortrait(file); setPortraitPreview(URL.createObjectURL(file)); } else if (file) showError("Das Portrait darf höchstens 5 MB gross sein."); }} /></label>{portraitPreview && <><Image unoptimized width={256} height={256} className="portrait-preview" src={portraitPreview} alt="Portrait-Vorschau" /><button type="button" onClick={() => { URL.revokeObjectURL(portraitPreview); setPortrait(null); setPortraitPreview(""); }}>Auswahl entfernen</button></>}<p>PNG, JPEG oder WebP. Varianten und Bildausschnitt können nach der Erstellung im Charakterbogen verwaltet werden.</p></section>
         <nav className="creator-steps" aria-label="Fortschritt">{steps.map((x, i) => <button type="button"
                                                                                              className={i === step ? "active" : ""}
                                                                                              onClick={() => i <= step && go(i)}
