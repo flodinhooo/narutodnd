@@ -75,7 +75,7 @@ it("keeps own enemies campaign isolated and global templates immutable", async (
 it("returns hashed ownership handles, never session credentials, and validates assignment", async () => {
   const id = randomUUID(); await db.client.campaignAccessSession.create({ data: { id, campaignId, role: "PLAYER", expiresAt: new Date(Date.now() + 3600000) } });
   const response = await collection(new Request("http://localhost"), { params: Promise.resolve({ campaignId, kind: "character", entityId: characterId }) }); const view = await response.json(); expect(JSON.stringify(view)).not.toContain(id);
-  await changePortrait(campaignId, "character", characterId, form("OWNER", { owner: view.owners[0].id }));
+  await changePortrait(campaignId, "character", characterId, form("OWNER", { owner: view.owners[0].id, expectedOwner: view.currentOwner }));
   actor("PLAYER", campaignId, id); expect((await portraitSubject(campaignId, "character", characterId, true)).canEdit).toBe(true);
   actor(); await expect(changePortrait(campaignId, "character", characterId, form("OWNER", { owner: "foreign" }))).rejects.toThrow();
 });
@@ -92,4 +92,25 @@ it("merges character portraits into an NPC identity when linking its combat shee
   expect(await db.client.portrait.count({ where: { characterId: c.id } })).toBe(0);
   expect(await db.client.portrait.count({ where: { npcId: n.id } })).toBe(2);
   expect(await db.client.portrait.count({ where: { npcId: n.id, isDefault: true } })).toBe(1);
+});
+it("accepts same-host uploads when Next uses an internal localhost URL", async () => {
+  const fd = new FormData(); fd.set("label", "Genin");
+  const parsed = await portraitForm(new Request("http://localhost:3000/api", { method: "POST", headers: { origin: "https://shio.example", host: "shio.example" }, body: fd }));
+  expect(parsed.get("label")).toBe("Genin");
+});
+it("enforces variant quota and leaves no file behind after a rejected upload", async () => {
+  actor("DM", campaignId, "quota-dm");
+  const c = await db.client.character.create({ data: { campaignId, name: "Quota" } });
+  for (let i = 0; i < 10; i++) await changePortrait(campaignId, "character", c.id, form("UPLOAD", { label: `Variant ${i}` }));
+  const before = await readdir(join(directory, "storage"));
+  await expect(changePortrait(campaignId, "character", c.id, form())).rejects.toThrow("Speicherlimit");
+  expect((await readdir(join(directory, "storage"))).sort()).toEqual(before.sort());
+});
+it("promotes the remaining portrait when removing the default", async () => {
+  const c = await db.client.character.create({ data: { campaignId, name: "Default removal" } });
+  await changePortrait(campaignId, "character", c.id, form()); await changePortrait(campaignId, "character", c.id, form("UPLOAD", { label: "Older" }));
+  const original = await db.client.portrait.findFirstOrThrow({ where: { characterId: c.id, isDefault: true } });
+  await changePortrait(campaignId, "character", c.id, form("DELETE", { id: original.id, version: String(original.version) }));
+  expect(await db.client.portrait.count({ where: { characterId: c.id, isDefault: true } })).toBe(1);
+  await expect(portraitImage(original.id)).rejects.toThrow("nicht verfügbar");
 });

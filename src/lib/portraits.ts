@@ -14,7 +14,8 @@ export async function changePortrait(campaignId: string, kind: string, entityId:
     const owner = String(fd.get("owner") || "");
     const sessions = await prisma.campaignAccessSession.findMany({ where: { campaignId, role: "PLAYER", expiresAt: { gt: new Date() } }, select: { id: true } });
     if (owner && !sessions.some(s => portraitOwnerKey(s.id) === owner)) throw new PortraitError("Spielerzugang nicht verfügbar.");
-    await prisma.character.update({ where: { id: entityId, campaignId }, data: { portraitOwnerKey: owner || null } });
+    const changed = await prisma.character.updateMany({ where: { id: entityId, campaignId, portraitOwnerKey: String(fd.get("expectedOwner") || "") || null }, data: { portraitOwnerKey: owner || null } });
+    if (!changed.count) throw new PortraitError("Besitzerzuordnung wurde inzwischen geändert. Bitte neu laden.", 409);
     return;
   }
   if (!["UPLOAD", "DEFAULT", "DELETE"].includes(op)) throw new PortraitError("Unbekannte Portrait-Aktion.");
