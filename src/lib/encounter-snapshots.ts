@@ -1,12 +1,24 @@
 import type { EncounterParticipantPlan, Prisma } from "@prisma/client";
 import { enemyBlueprint } from "./rules/enemies";
 import { enemyInclude } from "./enemy-library";
+import { enemyAbilitySchema, enemyAttackSchema, type EnemyAttack } from "./enemy-templates";
 import { abilities, calculateMaxChakra, clamp, effectiveAc, effectiveInitiative, preserveChakra, preserveHpDamage, skills, skillModifier, savingThrowModifier } from "./rules";
 import { combatSnapshotSchema, EncounterError, planOverridesSchema, validateEncounter, type CombatSnapshot } from "./encounters";
 
-const characterInclude = { natureLinks: { include: { nature: true } }, jutsuLinks: { include: { jutsu: true } }, skills: true, savingThrows: true } as const;
+const characterInclude = { natureLinks: { include: { nature: true } }, jutsuLinks: { include: { jutsu: true } }, skills: true, savingThrows: true, dmData: true } as const;
 type CombatCharacter = Prisma.CharacterGetPayload<{ include: typeof characterInclude }>;
 function characterSnapshot(c: CombatCharacter): CombatSnapshot {
+  let features: { name: string; description: string }[] = [];
+  let attacks: EnemyAttack[] = [];
+  if (c.combatProfile && typeof c.combatProfile === "object" && !Array.isArray(c.combatProfile)) {
+    const abilities = enemyAbilitySchema.array().max(30).safeParse(c.combatProfile.abilities), weaponAttacks = enemyAttackSchema.array().max(30).safeParse(c.combatProfile.attacks);
+    if (abilities.success) features = abilities.data;
+    if (weaponAttacks.success) attacks = weaponAttacks.data;
+  }
+  if (!c.combatProfile) {
+    try { const data = JSON.parse(c.dmData?.notes || "{}"); const parsed = enemyAbilitySchema.array().max(30).safeParse(data.loreCombatFeatures); if (parsed.success) features = parsed.data; } catch { /* Existing free-text DM notes are not combat features. */ }
+    try { const data = JSON.parse(c.dmData?.notes || "{}"); const parsed = enemyAttackSchema.array().max(30).safeParse(data.loreCombatAttacks); if (parsed.success) attacks = parsed.data; } catch { /* Existing sheets remain unchanged. */ }
+  }
   if (c.jutsuLinks.some(l => l.jutsu.campaignId !== null && l.jutsu.campaignId !== c.campaignId)) throw new EncounterError("Charakter enthält eine kampagnenfremde Jutsu-Verknüpfung.");
   const score = (key: string) => c[key.toLowerCase() as "str" | "dex" | "con" | "int" | "wis" | "cha"];
   return validateEncounter(combatSnapshotSchema, {
@@ -14,7 +26,7 @@ function characterSnapshot(c: CombatCharacter): CombatSnapshot {
     maxHp: c.maxHp, maxChakra: calculateMaxChakra(c.level, c.con, c.wis, c.reservoir, c.customReservoirMultiplier ?? 1),
     ac: effectiveAc(c.dex, c.acOverride), initiative: effectiveInitiative(c.dex, c.initiativeOverride),
     attributes: { str: c.str, dex: c.dex, con: c.con, int: c.int, wis: c.wis, cha: c.cha },
-    attacks: [], abilities: [],
+    attacks, abilities: features,
     skills: Object.entries(skills).map(([skill, ability]) => ({ skill, bonus: skillModifier(score(ability), c.level, c.skills.find(s => s.skill === skill)?.proficiency ?? "NONE") })),
     savingThrows: abilities.map(ability => ({ ability, bonus: savingThrowModifier(score(ability), c.level, c.savingThrows.some(s => s.ability === ability) ? "PROFICIENT" : "NONE") })),
     natures: c.natureLinks.map(l => ({ id: l.nature.id, key: l.nature.key, name: l.nature.displayName })),

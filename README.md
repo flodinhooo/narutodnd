@@ -10,22 +10,27 @@ Next.js 16.3.5, React 19.2.8, TypeScript, Prisma 6 mit SQLite, Zod und Vitest.
 
 ```bash
 npm install
+npm run db:prepare
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-Die lokale Datenbank liegt unter `prisma/dev.db`. Migrationen erhalten bestehende Daten.
+Vor dem ersten Start eine private `.env` anhand von `.env.example` konfigurieren.
+Die lokale Datenbank liegt unter `.private-data/dev.sqlite`. Migrationen erhalten
+bestehende Daten. Datenbankdateien und SQLite-Sidecars werden nicht eingecheckt.
 
 ## Umgebungsvariablen
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:../.private-data/dev.sqlite"
 CAMPAIGN_ACCESS_LOOKUP_SECRET="a-long-random-secret"
 PUBLIC_APP_URL="https://deine-domain.example"
 # Produktion: absoluter Pfad auf einem persistenten, privaten Volume.
 PORTRAIT_STORAGE_ROOT="/var/lib/shio/portraits"
 ATLAS_STORAGE_ROOT="/var/lib/shio/atlas"
+LORE_STORAGE_ROOT="/var/lib/shio/lore"
+LORE_BACKUP_ROOT="/var/lib/shio/backups"
 ```
 
 Branding verwendet das bereitgestellte Original unter
@@ -65,3 +70,10 @@ Private Vorlagen liegen unter `.lore-storage/` bzw. `LORE_STORAGE_ROOT` und werd
 nicht veröffentlicht. Quellenabgleich, Konflikte und gezielter lokaler Import:
 [docs/lore-seed-audit.md](docs/lore-seed-audit.md). Der Import startet als Dry-run
 und schützt vor dem Schreiben privater Lore in Git-getrackte Datenbanken.
+
+Der DM kann Pakete unter **Verwaltung → Lore-Import** einzeln prüfen und auswählen.
+85 NPC-Profile, 25 Kampfentwürfe und insgesamt 28 Missionsvorlagen sind über die
+lokal bereitgestellten privaten Pakete und sechs bestehenden globalen Vorlagen
+vorbereitet. Keine automatische Befüllung bestehender Kampagnen beim Seeding oder
+Deployment. Betrieb, Prüfungen und historische Datenbankrisiken:
+[docs/living-shiogakure.md](docs/living-shiogakure.md).
