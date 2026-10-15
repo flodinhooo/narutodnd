@@ -35,7 +35,7 @@ it("rejects changed source text instead of trusting an unchanged provenance labe
   expect(() => verifyLoreSources([doc])).not.toThrow(); expect(() => verifyLoreSources([{ ...doc, content: "altered" }])).toThrow("Git blob");
 });
 it("refuses writing private lore to a tracked database", async () => {
-  const fake = { $queryRawUnsafe: async () => [{ name: "main", file: join(process.cwd(), "prisma", "dev.db") }] } as unknown as PrismaClient;
+  const fake = { $queryRawUnsafe: async () => [{ name: "main", file: join(process.cwd(), "README.md") }] } as unknown as PrismaClient;
   await expect(assertPrivateLoreDatabase(fake)).rejects.toThrow("getrackte"); await expect(assertPrivateLoreDatabase(db)).resolves.toBeUndefined();
 });
 it("previews without writing and imports private incomplete NPC profiles with memberships", async () => {
