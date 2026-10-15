@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Private world atlas uploads
 .atlas-storage/
+
+# Private lore bundles and reports; never publish vault content
+.lore-storage/

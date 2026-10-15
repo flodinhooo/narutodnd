@@ -912,3 +912,31 @@ Safari/Firefox und Screenreader bleiben manuell zu prüfen. Produktion benötigt
 `ATLAS_STORAGE_ROOT` auf privatem persistentem Speicher und die Original-Assets im
 Deployment. Vollständige Architektur, Bedienung, Seed-Strategie, Sicherungen und
 Prüfergebnisse: [world-atlas.md](world-atlas.md).
+
+## Private Lore-Quelle und Seed-Abgleich – 15.10.2026
+
+Das separate ObsidianVault ist die primäre Quelle eigener Shio-Lore. 102
+Markdown-Dateien wurden über die bestehende autorisierte GitHub-Verbindung
+read-only erfasst und anhand ihrer Git-Blob-Hashes geprüft. Wegen des öffentlichen
+Web-App-Repositorys verbleiben Quelltexte und neue Lore-Pakete in ignoriertem
+privatem Speicher. Das Vault wurde nicht verändert.
+
+Vorbereitet: 31 vereinfachte NPC-Profile, vier Familien-/Clanvorlagen, vier noch
+unbesetzte Teamvorlagen, 31 Mitgliedschaften und 27 gerichtete Beziehungen. Ein
+lokales Betreiberwerkzeug bietet Dry-run und ausdrücklichen kampagnengebundenen
+Import mit Sicherung, stabilen IDs und Konflikt-Rollback. Bestehende Modelle werden
+verwendet; keine Migration. Der Import in eine isolierte DB-Kopie ist idempotent;
+alle 47 Tabellen der Entwicklungsdatenbank blieben unverändert. Reale Kampagnen
+wurden nicht mit Lore befüllt. Schreiben in die derzeit getrackte Entwicklungs-DB
+wird zum Schutz privater Daten abgelehnt.
+
+Alle 579 registrierten Jutsu-Seeds sind weiterhin vorhanden. Ein fehlendes
+Signature-Jutsu ist als private Vorlage vorbereitet; weitere Namensvarianten,
+Mechanikkonflikte und fehlende Angaben bleiben dokumentiert und ungeändert.
+Keine erfundenen Sensei, Familienmitglieder oder Kampfwerte wurden ergänzt.
+Technischer Bericht und lokaler privater Quellenabgleich:
+[lore-seed-audit.md](lore-seed-audit.md).
+
+Prüfstand: 470 Tests in 34 Dateien, Typecheck, ESLint, Production Build und Prisma
+Validation erfolgreich; alle 15 Migrationen aktuell. Kein Commit und keine
+Veröffentlichung privater Vault-Inhalte.

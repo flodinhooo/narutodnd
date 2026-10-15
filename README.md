@@ -59,3 +59,9 @@ Kampagne. Globale Seeds importieren keine Welt automatisch.
 Kartenbilder benötigen ebenfalls privaten persistenten Speicher; lokal wird
 `.atlas-storage/` verwendet. Bedienung, Berechtigungen, Originalkarten,
 Importstrategie und Prüfergebnisse: [docs/world-atlas.md](docs/world-atlas.md).
+
+Eigene Shio-Lore stammt primär aus dem separaten privaten ObsidianVault.
+Private Vorlagen liegen unter `.lore-storage/` bzw. `LORE_STORAGE_ROOT` und werden
+nicht veröffentlicht. Quellenabgleich, Konflikte und gezielter lokaler Import:
+[docs/lore-seed-audit.md](docs/lore-seed-audit.md). Der Import startet als Dry-run
+und schützt vor dem Schreiben privater Lore in Git-getrackte Datenbanken.
