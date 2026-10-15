@@ -1,5 +1,6 @@
 import sharp from "sharp";
-export class PortraitError extends Error { constructor(message: string, public status = 400) { super(message); } }
+import { PortraitError } from "./private-image-error";
+export { PortraitError } from "./private-image-error";
 export const MAX_PORTRAIT_BYTES = 5 * 1024 * 1024;
 export async function processPortrait(bytes: Uint8Array, mime: string, crop?: { x: number; y: number }) {
   if (!bytes.length || bytes.length > MAX_PORTRAIT_BYTES) throw new PortraitError("Das Bild darf höchstens 5 MB gross sein.", 413);

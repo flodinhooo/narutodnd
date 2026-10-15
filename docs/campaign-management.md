@@ -876,3 +876,39 @@ auswählbar. Ein kompakter Einstieg öffnet das Portrait-Studio mit Galerie und
 eigenem Upload; das Bild steht grösser neben den Profildaten. Es gibt keine
 automatischen Bildzuweisungen. Aktueller Prüflauf: 443 Tests in 30 Dateien sowie
 Typecheck, ESLint, Build und sechs zusätzliche echte Browserprüfschritte erfolgreich.
+
+## Universeller Weltatlas – 15.10.2026
+
+Der bislang zurückgestellte Kartenumfang ist jetzt implementiert. Eigene Karten
+mit privaten Uploads, Leaflet-Zoom/Drag/Touch, Vollbild, normalisierten Markern,
+hierarchischer Navigation und visuellem DM-Editor sind in der Kampagnennavigation
+unter **Atlas** erreichbar. Der bestehende Bereich **Orte** verwendet weiterhin
+das zentrale Location-Modell und zeigt die zugeordneten Karten und Beziehungen.
+Versionen und Request-Belege sichern parallele bzw. wiederholte Mutationen.
+Spieler erhalten ausschliesslich freigegebene Inhalte und geschützte Bildzugriffe.
+
+Alle sechs bereitgestellten Originalkarten sind unter `assets/world-atlas/shio/`
+abgelegt. Eine globale idempotente Vorlage enthält sechs Karten, 67 Locations und
+67 anhand der Originalbilder gesetzte Marker. **Shio no Kuni als Welt importieren**
+erstellt ausdrücklich kampagneneigene Kopien und respektiert vorhandene Orte.
+Importwiederholungen überschreiben keine manuellen Änderungen. Karten sind zunächst
+verborgen: Rasterbeschriftungen wie ANBU bleiben unabhängig von Markerfreigaben
+im Bild sichtbar und müssen vor Veröffentlichung geprüft werden.
+
+Additive Migration `20261015010000_world_atlas` ergänzt sechs neue Tabellen.
+Vor lokaler Anwendung wurde die DB gesichert; 40 vorhandene Tabellen unverändert,
+Foreign Keys gültig. Alle 15 Migrationen isoliert geprüft und lokal aktuell.
+Der globale Atlas-Seed wurde zweimal ausgeführt, ohne die übrigen 46 Tabellen zu
+verändern. Erhalten: 589 globale Jutsu (alle 579 registrierten Seeds), 20 globale
+Gegner und sechs Missionsvorlagen. Keine Welt wurde in Entwicklungskampagnen importiert.
+
+**461 Tests in 33 Dateien**, Typecheck, ESLint, Production Build und Prisma
+Validation erfolgreich. 14 zusätzliche echte Edge-Browserprüfschritte auf einer
+separaten DB-Kopie bestätigen Import, Upload, Platzierung, Ziehen, Navigation,
+Persistenz, Spielerschutz, mobile Darstellung, Mausrad-/Touch-Zoom und Vollbild.
+
+Grenzen: kein Fog of War, keine Tile-Pyramiden, kein Live-Push; echte Touch-Hardware,
+Safari/Firefox und Screenreader bleiben manuell zu prüfen. Produktion benötigt
+`ATLAS_STORAGE_ROOT` auf privatem persistentem Speicher und die Original-Assets im
+Deployment. Vollständige Architektur, Bedienung, Seed-Strategie, Sicherungen und
+Prüfergebnisse: [world-atlas.md](world-atlas.md).

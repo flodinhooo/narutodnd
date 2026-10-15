@@ -74,6 +74,10 @@ enum LocationType {
 }
 
 model Campaign {
+  atlasMaps WorldMap[]
+  atlasImports AtlasImport[]
+  atlasLocationSeeds AtlasLocationSeed[]
+  atlasChanges AtlasChange[]
   portraits Portrait[]
 
   id             String            @id @default(cuid())
@@ -318,6 +322,9 @@ model GameSession {
 }
 
 model Location {
+  atlasMaps WorldMap[]
+  atlasMarkers MapMarker[]
+  atlasSeedBindings AtlasLocationSeed[]
   id String @id @default(cuid())
   campaignId String
   parentId String?
@@ -879,4 +886,99 @@ model Portrait {
   @@index([characterId, isDefault])
   @@index([npcId, isDefault])
   @@index([enemyTemplateId, isDefault])
+}
+
+enum AtlasMapType {
+ WORLD
+ REGION
+ ISLAND
+ CITY
+ VILLAGE
+ DISTRICT
+ BUILDING
+ DUNGEON
+ CUSTOM
+}
+model WorldMap {
+ id String @id @default(cuid())
+ campaignId String
+ name String
+ description String @default("")
+ type AtlasMapType @default(CUSTOM)
+ parentId String?
+ locationId String?
+ dmNotes String @default("")
+ playerVisible Boolean @default(false)
+ archived Boolean @default(false)
+ sortOrder Int @default(0)
+ version Int @default(1)
+ seedKey String?
+ imageKey String? @unique
+ imageWidth Int?
+ imageHeight Int?
+ imageBytes Int?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ parent WorldMap? @relation("AtlasTree", fields: [parentId], references: [id], onDelete: Restrict)
+ children WorldMap[] @relation("AtlasTree")
+ location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+ markers MapMarker[] @relation("MapMarkers")
+ incomingMarkers MapMarker[] @relation("MarkerChildMap")
+ @@unique([campaignId, seedKey])
+ @@index([campaignId, parentId])
+}
+model MapMarker {
+ id String @id @default(cuid())
+ mapId String
+ x Float
+ y Float
+ title String
+ description String @default("")
+ category String @default("OTHER")
+ icon String @default("pin")
+ color String @default("#d7ae68")
+ playerVisible Boolean @default(false)
+ locationId String?
+ childMapId String?
+ seedKey String?
+ map WorldMap @relation("MapMarkers", fields: [mapId], references: [id], onDelete: Cascade)
+ location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+ childMap WorldMap? @relation("MarkerChildMap", fields: [childMapId], references: [id], onDelete: SetNull)
+ @@unique([mapId, seedKey])
+ @@index([mapId])
+}
+model AtlasWorldTemplate {
+ seedKey String @id
+ name String
+ description String
+ manifestHash String
+ blueprint Json
+}
+model AtlasImport {
+ id String @id @default(cuid())
+ campaignId String
+ seedKey String
+ rootMapId String?
+ createdAt DateTime @default(now())
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ @@unique([campaignId, seedKey])
+}
+model AtlasLocationSeed {
+ id String @id @default(cuid())
+ campaignId String
+ seedKey String
+ locationId String?
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+ @@unique([campaignId, seedKey])
+}
+model AtlasChange {
+ id String @id @default(cuid())
+ campaignId String
+ requestId String
+ payloadHash String
+ mapId String?
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ @@unique([campaignId, requestId])
 }

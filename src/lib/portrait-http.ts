@@ -6,7 +6,7 @@ export function portraitFailure(error: unknown) {
   console.error("Portrait-Anfrage fehlgeschlagen.");
   return Response.json({ error: "Bild konnte nicht verarbeitet werden." }, { status: 500 });
 }
-export async function portraitForm(request: Request) {
+export async function portraitForm(request: Request, limitBytes = 6 * 1024 * 1024) {
   const origin = request.headers.get("origin");
   // Next may use localhost internally even when the browser connects through
   // a public hostname/reverse proxy. Compare with the actual HTTP Host header.
@@ -14,7 +14,7 @@ export async function portraitForm(request: Request) {
   if (!origin || new URL(origin).host !== host || !["http:", "https:"].includes(new URL(origin).protocol)) throw new PortraitError("Ungültiger Anfrageursprung.", 403);
   const reader = request.body?.getReader(); if (!reader) throw new PortraitError("Keine Formulardaten.");
   const chunks: Uint8Array[] = []; let size = 0;
-  while (true) { const { value, done } = await reader.read(); if (done) break; size += value.length; if (size > 6 * 1024 * 1024) { await reader.cancel(); throw new PortraitError("Upload ist zu gross.", 413); } chunks.push(value); }
+  while (true) { const { value, done } = await reader.read(); if (done) break; size += value.length; if (size > limitBytes) { await reader.cancel(); throw new PortraitError("Upload ist zu gross.", 413); } chunks.push(value); }
   const bytes = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
   try { return await new Request(request.url, { method: "POST", headers: { "Content-Type": request.headers.get("content-type") || "" }, body: bytes }).formData(); }
   catch { throw new PortraitError("Ungültiger Bild-Upload."); }

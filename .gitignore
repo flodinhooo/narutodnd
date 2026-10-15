@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Private uploaded portraits (never serve from public)
 .portrait-storage/
+
+# Private world atlas uploads
+.atlas-storage/

@@ -25,6 +25,7 @@ CAMPAIGN_ACCESS_LOOKUP_SECRET="a-long-random-secret"
 PUBLIC_APP_URL="https://deine-domain.example"
 # Produktion: absoluter Pfad auf einem persistenten, privaten Volume.
 PORTRAIT_STORAGE_ROOT="/var/lib/shio/portraits"
+ATLAS_STORAGE_ROOT="/var/lib/shio/atlas"
 ```
 
 Branding verwendet das bereitgestellte Original unter
@@ -50,3 +51,11 @@ npx prisma validate
 ```
 
 Der Seed ist idempotent und kann mit `npm run db:seed` erneut ausgeführt werden.
+
+Der kampagnengebundene **Atlas** verwaltet eigene Karten, Ortsmarker und
+hierarchische Detailkarten. Unter **Atlas → Karte erstellen → Shio no Kuni
+importieren** übernimmt der DM die vorbereitete Welt ausdrücklich in seine
+Kampagne. Globale Seeds importieren keine Welt automatisch.
+Kartenbilder benötigen ebenfalls privaten persistenten Speicher; lokal wird
+`.atlas-storage/` verwendet. Bedienung, Berechtigungen, Originalkarten,
+Importstrategie und Prüfergebnisse: [docs/world-atlas.md](docs/world-atlas.md).

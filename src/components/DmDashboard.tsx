@@ -11,7 +11,7 @@ export default async function DmDashboard({ campaignId }: { campaignId: string }
     <div className="actions">
       <Link className="button ghost" href={`${base}/npcs`}>NPCs auswählen</Link>
       <Link className="button ghost" href={`${base}/organizations`}>Teams &amp; Organisationen</Link>
-      <Link className="button ghost" href={`${base}/bestiary`}>Bestiary</Link>
+      <Link className="button ghost" href={`${base}/bestiary`}>Bestiary</Link><Link className="button ghost" href={`${base}/atlas`}>Atlas</Link>
       <Link className="button ghost" href={`${base}/missions`}>Missionen &amp; Vorlagen</Link>
       <Link className="button ghost" href={`${base}/encounters`}>Encounters</Link>
     </div>
