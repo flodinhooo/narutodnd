@@ -128,6 +128,7 @@ model Character {
   background                String                   @default("")
   alignment                 String                   @default("")
   description               String                   @default("")
+  combatProfile             Json?
   speed                     Int                      @default(30)
   maxHp                     Int                      @default(10)
   currentHp                 Int                      @default(10)

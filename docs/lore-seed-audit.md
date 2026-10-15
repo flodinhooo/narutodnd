@@ -1,5 +1,9 @@
 # Lore-/Seed-Audit
 
+Aktueller Nachtrag: Die private DB-Konfiguration und die DM-Importoberfläche
+sind inzwischen implementiert. Der folgende Bericht dokumentiert den vorherigen
+Auditstand; aktueller Umfang und Bedienung: [living-shiogakure.md](living-shiogakure.md).
+
 Stand: 15.10.2026. Primäre Quelle für eigene Shio-Lore ist das private
 `flodinhooo/ObsidianVault`, Bereich `Naruto dnd Campaign`.
 Die Web-App enthält diese Lore nicht vollständig.

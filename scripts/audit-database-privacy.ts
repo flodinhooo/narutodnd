@@ -7,6 +7,7 @@ const db = new PrismaClient();
 async function inspect(client: PrismaClient) {
   const existing = await client.$queryRawUnsafe<{ name: string }[]>("SELECT name FROM sqlite_master WHERE type='table'");
   const counts: Record<string, number> = {};
+  if (existing.some(t => t.name === "CampaignAccessSession")) counts["CampaignAccessSession.active"] = await client.campaignAccessSession.count({ where: { expiresAt: { gt: new Date() } } });
   for (const [table, fields] of [["CharacterDMData", ["notes", "secretInformation"]], ["Npc", ["dmSecrets"]], ["Mission", ["dmNotes"]], ["Organization", ["dmSecrets"]]] as const) {
     if (!existing.some(t => t.name === table)) continue;
     for (const field of fields) {
