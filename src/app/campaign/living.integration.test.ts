@@ -72,6 +72,7 @@ it("rejects stale previews and preserves manual edits on repeat", async () => {
 });
 it("snapshots character features and separates later sheet changes from the run snapshot", async () => {
   const n = await db.client.npc.findFirstOrThrow({ where: { campaignId, name: "Fixture Teacher" }, include: { character: true } });
+  await db.client.characterDMData.update({ where: { characterId: n.characterId! }, data: { notes: "Normal editable DM notes" } });
   const e = await db.client.encounter.create({ data: { campaignId, name: "Fixture combat" } }); const p = await db.client.encounterParticipantPlan.create({ data: { encounterId: e.id, npcId: n.id } });
   const { snapshot } = await snapshotPlan(db.client, campaignId, p); expect(snapshot.ac).toBe(calculateBaseArmorClass(16)); expect(snapshot.initiative).toBe(calculateInitiativeBonus(16)); expect(snapshot.abilities[0].description).toContain("support tactics"); expect(snapshot.attacks[0]).toMatchObject({ bonus: 5, damageDice: "1d4+3" });
   await db.client.character.update({ where: { id: n.characterId! }, data: { maxHp: 99, currentHp: 45 } }); expect(snapshot.maxHp).toBe(28); expect(snapshot.maxChakra).toBe(n.character!.currentChakra);

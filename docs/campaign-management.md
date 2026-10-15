@@ -940,3 +940,37 @@ Technischer Bericht und lokaler privater Quellenabgleich:
 Prüfstand: 470 Tests in 34 Dateien, Typecheck, ESLint, Production Build und Prisma
 Validation erfolgreich; alle 15 Migrationen aktuell. Kein Commit und keine
 Veröffentlichung privater Vault-Inhalte.
+
+## Living Shiogakure – 15.10.2026
+
+Die gesicherte Entwicklungsdatenbank liegt jetzt Git-ignoriert unter
+`.private-data/dev.sqlite`; die lokale Originaldatei bleibt erhalten und wurde
+erst nach Inhalts-/Foreign-Key-Vergleich aus dem Index entfernt. Historische
+DB-Versionen enthalten interne Notizfelder und benötigen vor Deployment einen
+gesonderten History-/Zugangsdaten-Abgleich.
+
+Unter **Verwaltung → Lore-Import** sind private Pakete mit Vorschau, Gruppen- und
+Einzelauswahl, Entwurfsfreigaben, Konfliktanzeige, Sicherung und Schutz gegen
+veraltete Vorschauen importierbar. Bestehende Daten und manuelle Änderungen bleiben
+erhalten. Die bisherigen Importmodelle und Missions-/Encounter-Kerne werden geteilt.
+
+Vorbereitet sind 31 Lore-Identitäten plus 54 neue NPC-Vorschläge, 25 regelkonforme
+Kampfentwürfe, 19 Organisationen, 48 gerichtete Beziehungen und 83 Ortszuordnungen.
+Die Führungsfiguren besitzen quellenbezogene Profile; widersprüchliche Kampfwerte
+werden ausschliesslich als bestätigungspflichtige DM-Entwürfe behandelt.
+Itohara-/Shiranami-Führungen sind mangels Vault-Beleg ausdrücklich Vorschläge.
+
+Sechs bestehende globale und 22 neue private Missionsvorlagen ergeben 28 Aufträge
+(D/C/B/A/S: 10/8/5/3/2). Die neuen Vorlagen verwenden konkrete NPCs/Locations,
+vorhandene Gegner und vorbereitete DM-bestätigte Folgen. Kein automatischer Import
+beim Seeding oder Deployment. Private Pakete und Berichte bleiben ausserhalb des
+öffentlichen Sourcecodes und der Build-Artefakte.
+
+Prüfstand: 482 Tests in 37 Dateien, Typecheck, ESLint, Production Build, Prisma
+Validation, 16 isoliert geprüfte Migrationen, doppelte Seeds und elf echte Browser-
+Prüfschritte erfolgreich. Vollständiger Bericht, Deployment-Anforderungen und
+verbleibende Lore-/Sicherheitsentscheidungen: [living-shiogakure.md](living-shiogakure.md).
+
+Die additive Migration `20261015160000_character_combat_profile` speichert optionale
+Entwurfsangriffe und Sonderfähigkeiten getrennt von frei bearbeitbaren DM-Notizen.
+Bestehende Charaktere erhalten einen leeren Wert; Encounter Runs verwenden weiterhin Snapshots.

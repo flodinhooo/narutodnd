@@ -24,7 +24,7 @@ import NewEnemy from "./[campaignId]/bestiary/new/page";
 
 let directory: string, campaignId: string, foreignId: string, water: string, fire: string, waterJutsu: string, foreignJutsu: string;
 let legacySnapshot: unknown;
-const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "upgrade-campaign"); for (const row of rows) delete row.portraitOwnerKey; return rows; };
+const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "upgrade-campaign"); for (const row of rows) { delete row.portraitOwnerKey; delete row.combatProfile; } return rows; };
 const legacyData = async () => ({ campaign: await database.client.campaign.findUnique({ where: { id: "upgrade-campaign" }, include: { npcs: true, characterRelationships: true } }), characters: await legacyCharacters(), organizations: await database.client.$queryRawUnsafe('SELECT id,campaignId,name,type,description,notes,dmSecrets,playerVisible,archived,createdAt,updatedAt,locationId FROM Organization ORDER BY id'), members: await database.client.organizationMember.findMany({ orderBy: { id: "asc" } }) });
 const input = (extra: Partial<EnemyTemplateInput> = {}): EnemyTemplateInput => ({ ...enemyTemplateSeeds[6].data, natureIds: [], jutsuIds: [], ...extra });
 function form(data: EnemyTemplateInput, version = 1) {

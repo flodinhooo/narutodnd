@@ -23,7 +23,7 @@ import RunPage from "./[campaignId]/encounters/runs/[runId]/page";
 
 let directory: string, campaignId: string, foreignId: string, enemyId: string, shinobiId: string, pcId: string, civilianId: string, npcId: string, foreignEnemy: string, foreignNpc: string, foreignCharacter: string, locationId: string, foreignLocation: string;
 let legacySnapshot: unknown;
-const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "legacy-encounter"); for (const row of rows) delete row.portraitOwnerKey; return rows; };
+const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "legacy-encounter"); for (const row of rows) { delete row.portraitOwnerKey; delete row.combatProfile; } return rows; };
 const legacy = async () => Promise.all([legacyCharacters(), database.client.npc.findMany({ where: { campaignId: "legacy-encounter" } }), database.client.enemyTemplate.findMany({ where: { campaignId: "legacy-encounter" } })]);
 const fd = (data: Record<string, string>) => { const f = new FormData(); for (const [key, value] of Object.entries(data)) f.set(key, value); return f; };
 const eventId = randomUUID();
