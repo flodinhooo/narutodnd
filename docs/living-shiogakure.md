@@ -1,5 +1,11 @@
 # Living Shiogakure
 
+Aktueller Nachtrag: Das private Genin-Team-Paket enthält jetzt drei dokumentierte
+NPC-Teams und ein bewusst leeres Spielerteam. Umfang, DM-Freigaben,
+Jutsu-Sichtbarkeit und aktuelle Prüfungen stehen in
+[genin-teams-integration.md](genin-teams-integration.md). Ältere Hinweise auf vier
+leere Team-/Sensei-Dateienpaare beschreiben den damaligen Auditstand.
+
 Stand: 15.10.2026. Die Erweiterung verwendet die vorhandenen NPC-, Character-,
 Organisations-, Missions-, Encounter-, Portrait- und Atlas-Systeme. Es gibt keine
 zweite Charakter- oder Ortsdatenbank und keine automatische Kampagnenbefüllung.

@@ -19,7 +19,7 @@ export async function lorePackages() {
   let files: string[]; try { files = await readdir(/* turbopackIgnore: true */ await root()); } catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return []; throw e; }
   const result = [];
   for (const id of files.filter(f => /^[a-zA-Z0-9_-]{1,100}\.json$/.test(f)).sort()) {
-    try { const b = await readLorePackage(id); result.push({ id, key: b.key, npcs: b.npcs.length, organizations: b.organizations.length, missions: b.missions.length }); } catch { /* Non-bundle private review files are not catalogue entries. */ }
+    try { const b = await readLorePackage(id); result.push({ id, key: b.title || b.key, npcs: b.npcs.length, organizations: b.organizations.length, missions: b.missions.length }); } catch { /* Non-bundle private review files are not catalogue entries. */ }
   }
   return result;
 }

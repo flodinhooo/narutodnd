@@ -220,6 +220,7 @@ model Jutsu {
   campaignId            String?
   campaign              Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   category              String?
+  dmOnly                Boolean             @default(false)
   progressionType       String?
   traditionProvenance   String?
   prerequisiteText      String?
