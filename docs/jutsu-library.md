@@ -2,8 +2,8 @@
 
 Die Bibliothek gruppiert Techniken nach Rang E–S. Deutscher Name und kurze
 Wirkung stehen auf der Karte; vollständige Spielregeln sind separat erreichbar.
-Die Ergebnisliste zeigt höchstens 24 Techniken pro Seite; Filter bleiben beim
-Blättern erhalten.
+Die Ergebnisliste zeigt alle passenden Techniken auf einer Seite, gruppiert
+nach Rang. Suche und Filter schränken die Auswahl weiterhin ein.
 Technikart und Einsatzgebiet sind unabhängige Filter. Die Einsatzgebiete werden
 aus Kategorie und Regeltext abgeleitet; ohne eindeutigen Treffer bleibt die
 Zuordnung leer. Unbekannte Technikarten stehen unter „Sonstige“.
@@ -63,5 +63,5 @@ besitzt eine entsprechende Migration für Entwicklung und Integrationstests.
 Die PostgreSQL-Migration und der bereinigte Seed sind bereits eingespielt.
 Abgleich danach: 579 bestehende IDs und beide Charakter-Jutsu-Zuordnungen
 unverändert, keine Schemadifferenz. Der vollständige Testlauf bestand mit
-517 Tests; zusätzliche Zugriffstests prüfen NPC-Geheimnisse und die Seitennavigation.
+517 Tests; zusätzliche Zugriffstests prüfen NPC-Geheimnisse und die vollständige Ergebnisliste.
 TypeScript, ESLint und der PostgreSQL-Produktionsbuild wurden geprüft.

@@ -107,4 +107,3 @@
 .jutsu-choice-card { border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0; }
 .jutsu-choice-card .jutsu-choice { border:0; padding:0; }.jutsu-choice-card p { font-size:14px; line-height:1.55; }
 .jutsu-tile summary,.jutsu-choice-card summary { cursor:pointer; color:var(--gold); }
-.jutsu-pagination { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:18px; margin:28px 0; }
