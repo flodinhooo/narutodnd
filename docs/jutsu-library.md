@@ -59,3 +59,9 @@ Prüfung ersetzt keine fachliche Durchsicht jedes einzelnen Regeltexts.
 Migration `20261016180000_jutsu_library` für PostgreSQL anwenden und danach den
 aktualisierten Seed ausführen. Anschließend den neuen Code deployen. SQLite
 besitzt eine entsprechende Migration für Entwicklung und Integrationstests.
+
+Die PostgreSQL-Migration und der bereinigte Seed sind bereits eingespielt.
+Abgleich danach: 579 bestehende IDs und beide Charakter-Jutsu-Zuordnungen
+unverändert, keine Schemadifferenz. Der vollständige Testlauf bestand mit
+517 Tests; zusätzliche Zugriffstests prüfen NPC-Geheimnisse und die Seitennavigation.
+TypeScript, ESLint und der PostgreSQL-Produktionsbuild wurden geprüft.

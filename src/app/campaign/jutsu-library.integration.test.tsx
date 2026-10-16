@@ -12,6 +12,7 @@ vi.mock("next/navigation",()=>({notFound:()=>{throw Error("NOT_FOUND");}}));
 import {setJutsuRelease} from "./jutsu-library-actions";
 import {playerJutsuScope,creatorJutsuScope} from "@/lib/jutsu-access";
 import Detail from "./[campaignId]/jutsu-library/[slug]/page";
+import Library from "./[campaignId]/jutsu-library/page";
 let directory:string;
 const releaseForm=(yes=true)=>{const f=new FormData();f.set("release",yes?"yes":"no");return f;};
 beforeAll(async()=>{
@@ -48,4 +49,13 @@ it("keeps learned techniques known when their library release is withdrawn",asyn
  expect(await db.client.jutsu.count({where:{AND:[playerJutsuScope("a"),{id:"learned"}]}})).toBe(1);
  await setJutsuRelease("a","hidden",releaseForm());await setJutsuRelease("a","hidden",releaseForm(false));
  expect(await db.client.jutsu.count({where:{AND:[playerJutsuScope("a"),{id:"hidden"}]}})).toBe(0);
+});
+it("paginates the filtered catalogue and retains filters in navigation links",async()=>{
+ await db.client.jutsu.createMany({data:Array.from({length:27},(_,i)=>({slug:`pagination-${i}`,name:`PageFixture ${i}`,description:"Beispielwirkung.",rank:"D" as const,chakraCost:4,range:"Self",duration:"Instantaneous",actionType:"Action"}))});
+ const render=async(page:string)=>renderToStaticMarkup(await Library({params:Promise.resolve({campaignId:"a"}),searchParams:Promise.resolve({q:"PageFixture",rank:"D",page})}));
+ const first=await render("1"),last=await render("2");
+ expect((first.match(/class="panel jutsu-tile"/g)||[]).length).toBe(24);
+ expect((last.match(/class="panel jutsu-tile"/g)||[]).length).toBe(3);
+ expect(first).toContain("q=PageFixture&amp;rank=D&amp;page=2");
+ expect(last).toContain("Seite 2 von 2");
 });
