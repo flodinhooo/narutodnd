@@ -18,15 +18,15 @@ const ruleMessages: Record<string, string> = {
 export const creationRuleMessage = (error: unknown) => error instanceof Error ? ruleMessages[error.message] ?? creationFailureMessage : creationFailureMessage;
 
 export type StartingJutsu = {
- dmOnly?: boolean; rank: string; campaignId: string | null; requiredNatureKeys: string | null;
+ dmOnly?: boolean; reviewNeeded?: boolean; rank: string; campaignId: string | null; requiredNatureKeys: string | null;
  natures: {nature: {key: string; playerSelectable: boolean}}[];
 };
 // Use the same eligibility predicate in the Creator loader and authoritative action.
-export function isStartingJutsuAllowed(jutsu: StartingJutsu, campaignId: string, natureKey?: string) {
- if (jutsu.dmOnly) return false;
- if (jutsu.rank === "S" || (jutsu.campaignId !== null && jutsu.campaignId !== campaignId)) return false;
- if (!jutsu.natures.length || jutsu.natures.some(link => !link.nature.playerSelectable)) return false;
- if (natureKey && !jutsu.natures.some(link => link.nature.key === natureKey)) return false;
+export function isStartingJutsuAllowed(jutsu: StartingJutsu, campaignId: string, natureKey?: string, level = 2) {
+ if (jutsu.dmOnly || jutsu.reviewNeeded) return false;
+ if (!(level === 1 ? ["E", "D"] : ["E", "D", "C", "B", "A"]).includes(jutsu.rank) || (jutsu.campaignId !== null && jutsu.campaignId !== campaignId)) return false;
+ if (jutsu.natures.some(link => !link.nature.playerSelectable)) return false;
+ if (natureKey && jutsu.natures.length && !jutsu.natures.some(link => link.nature.key === natureKey)) return false;
  if (jutsu.requiredNatureKeys) {
   try {
    const required: unknown = JSON.parse(jutsu.requiredNatureKeys);

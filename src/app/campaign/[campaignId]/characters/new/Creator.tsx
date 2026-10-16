@@ -6,6 +6,8 @@ import {toast} from "react-toastify";
 import {abilityLabels, skillLabels, creatorOptionLabels} from "@/lib/creator-labels";
 import {creationFailureMessage, creationRuleMessage, isStartingJutsuAllowed, type StartingJutsu} from "@/lib/character-creation";
 import {createCharacter} from "@/app/actions";
+import {jutsuRanks, jutsuSummary, jutsuUsages, techniqueType, actionLabel} from "@/lib/jutsu-content";
+import JutsuRules from "@/components/JutsuRules";
 import {
     calculateBaseArmorClass,
     calculateInitiativeBonus,
@@ -88,6 +90,8 @@ export default function Creator({campaignId, natures, jutsu}: {
         chakraCost: number;
         range: string;
         actionType: string;
+        description?: string;
+        category?: string | null;
     })[]
 }) {
     const router = useRouter();
@@ -126,7 +130,14 @@ export default function Creator({campaignId, natures, jutsu}: {
     };
     const [step, setStep] = useState(0);
     const [s, setS] = useState<State>(initial);
-    const patch = (p: Partial<State>) => setS(v => ({...v, ...p}));
+    const patch = (p: Partial<State>) => setS(v => {
+        const next = {...v, ...p};
+        if (p.level !== undefined || p.nature !== undefined) next.jutsu = next.jutsu.filter(id => {
+            const item = jutsu.find(j => j.id === id);
+            return item && isStartingJutsuAllowed(item, campaignId, next.nature, next.level);
+        });
+        return next;
+    });
     const setScore = (a: Ability, v: number) => patch({baseScores: {...s.baseScores, [a]: v}});
     const assign = (a: Ability, v: string) => {
         const n = v ? Number(v) : null;
@@ -134,7 +145,8 @@ export default function Creator({campaignId, natures, jutsu}: {
     };
     const used = Object.values(s.array).filter((v): v is number => v !== null);
     const available = standardArray.filter(v => !used.includes(v));
-    const compatible = useMemo(() => [...jutsu].filter(x => s.nature && isStartingJutsuAllowed(x, campaignId, s.nature)).sort((a, b) => a.rank.localeCompare(b.rank) || a.name.localeCompare(b.name, "de")), [jutsu, s.nature, campaignId]);
+    const [jutsuSearch, setJutsuSearch] = useState("");
+    const compatible = useMemo(() => [...jutsu].filter(x => s.nature && isStartingJutsuAllowed(x, campaignId, s.nature, s.level) && `${x.germanName || x.name} ${jutsuSummary(x.description || "")}`.toLocaleLowerCase("de").includes(jutsuSearch.toLocaleLowerCase("de"))).sort((a, b) => jutsuRanks.indexOf(a.rank as typeof jutsuRanks[number]) - jutsuRanks.indexOf(b.rank as typeof jutsuRanks[number]) || (a.germanName || a.name).localeCompare(b.germanName || b.name, "de")), [jutsu, s.nature, s.level, campaignId, jutsuSearch]);
     const finalScores = getFinalAbilityScores(s.baseScores, s.hitDie, s.hitDieAbilityBonus);
     let validCreation = false;
     let validationError = "";
@@ -275,11 +287,7 @@ export default function Creator({campaignId, natures, jutsu}: {
                 <option key={x} value={x}>{label(x)}</option>)}</select></label>
                 <div className="preview"><small>MAXIMALES CHAKRA</small><strong>{max}</strong></div>
             </>}
-            {step === 5 && <><h2>Jutsu</h2><p>Gewählt: {s.jutsu.length} / 2</p>{compatible.length === 0 &&
-                <div className="empty"><p>Wähle zuerst eine Chakra-Natur.</p></div>}{compatible.map(x => <label
-                className="check jutsu-choice" key={x.id}><input type="checkbox" checked={s.jutsu.includes(x.id)}
-                                                                 disabled={!s.jutsu.includes(x.id) && s.jutsu.length >= 2}
-                                                                 onChange={() => patch({jutsu: s.jutsu.includes(x.id) ? s.jutsu.filter(y => y !== x.id) : [...s.jutsu, x.id]})}/><span><strong>{x.germanName || x.name}</strong><small>Rang {x.rank} {x.chakraCost} Chakra {x.actionType} {x.range}</small></span></label>)}</>}
+            {step === 5 && <><h2>Jutsu</h2><p>Gewählt: {s.jutsu.length} / 2 · {s.level === 1 ? "Stufe 1: Rang E und D" : "Ab Stufe 2: Rang E bis A"}</p><label>Technik suchen<input value={jutsuSearch} onChange={e=>setJutsuSearch(e.target.value)} placeholder="Name oder Wirkung"/></label>{compatible.length === 0 && <p className="empty">Keine passenden freigegebenen Techniken. Wähle eine Chakra-Natur oder bitte die Spielleitung um eine Freigabe.</p>}{compatible.map(x => <article className="jutsu-choice-card" key={x.id}><label className="check jutsu-choice"><input type="checkbox" checked={s.jutsu.includes(x.id)} disabled={!s.jutsu.includes(x.id) && s.jutsu.length >= 2} onChange={() => patch({jutsu: s.jutsu.includes(x.id) ? s.jutsu.filter(y => y !== x.id) : [...s.jutsu, x.id]})}/><span><strong>{x.germanName || x.name}</strong><small>Rang {x.rank} · {x.chakraCost} Chakra · {actionLabel(x.actionType)} · {actionLabel(x.range)}</small></span></label><div className="jutsu-tags"><span>{techniqueType(x.category)}</span>{jutsuUsages(x).map(t=><span key={t}>{t}</span>)}</div><p>{jutsuSummary(x.description || "")}</p><details><summary>Wirkung &amp; Regeln</summary><JutsuRules description={x.description || ""}/></details></article>)}</>}
             {step === 6 && <><h2>Kampf</h2>{hpLevels.map(level => <section key={level}><h3>Trefferpunkte für Level {level}</h3><label>HP-Wurf<select value={s.hpRolls[level]?.mode ?? ""} onChange={e => setHpRoll(level, {mode: e.target.value as "AUTO" | "MANUAL", raw: ""})}><option value="">Wählen</option><option value="AUTO">Automatisch beim Erstellen würfeln</option><option value="MANUAL">Selbst würfeln</option></select></label>{s.hpRolls[level]?.mode === "MANUAL" && <label>Gewürfelte Zahl<input type="number" min={1} max={getHitDieMaximum(s.hitDie ?? "d10")} step={1} value={s.hpRolls[level].raw} onChange={e => setHpRoll(level, {...s.hpRolls[level], raw: e.target.value})}/></label>}{s.hpRolls[level]?.mode === "AUTO" && <p className="muted">Ein serverseitiger Wurf wird beim Bestätigen der Erstellung gespeichert.</p>}</section>)}<label>Bewegung<input type="number" min="0" value={s.speed}
                                                                  onChange={e => patch({speed: Number(e.target.value)})}/></label><div className="preview"><small>HIT DIE</small><strong>{s.hitDie ?? "Nicht gewählt"}</strong><small>MAXIMALE TP</small><strong>{maxHp ?? "Rolls ausstehend"}</strong><small>RÜSTUNGSKLASSE</small><strong>{ac}</strong><small>INITIATIVE</small><strong>{signed(calculateInitiativeBonus(finalScores.dex))}</strong></div><p className="muted">HP: {s.hitDie} + CON ({signed(getAbilityModifier(finalScores.con))}){s.level > 1 ? ` + ${s.level - 1} persistente Level-Rolls und CON je Level` : ""}. AC: 12 + DEX. Initiative: DEX.</p></>}
             {step === 7 && <>

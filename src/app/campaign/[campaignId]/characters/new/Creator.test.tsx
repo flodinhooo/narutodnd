@@ -32,6 +32,28 @@ const renderFilledCreator=()=>{
 beforeEach(()=>{vi.clearAllMocks();createCharacter.mockResolvedValue({ok:false,code:"NATURE",message:natureUnavailableMessage});});
 afterEach(()=>{toast.dismiss();cleanup();});
 
+it("shows effects and only E/D on level 1, allows A at level 2, and clears it after lowering level",()=>{
+ const advanced={...props.jutsu[0],id:"advanced",rank:"A",name:"Advanced",germanName:"Grosser Feuersturm",description:"Eine Feuerwand schützt deine Verbündeten."};
+ render(<Creator {...props} jutsu={[{...props.jutsu[0],description:"Ein Feuerstoss trifft ein Ziel."},advanced]}/>);
+ fireEvent.click(screen.getByRole("button",{name:/D10 - Robust/}));next();
+ fireEvent.change(screen.getByLabelText("Name"),{target:{value:"Test"}});
+ next();next();next();
+ fireEvent.change(screen.getByLabelText("Primäre Chakra-Natur"),{target:{value:"FIRE"}});
+ next();
+ expect(screen.getAllByText("Ein Feuerstoss trifft ein Ziel.").length).toBeGreaterThan(0);
+ expect(screen.queryByText("Grosser Feuersturm")).toBeNull();
+ fireEvent.click(screen.getByRole("button",{name:"2. Grundlagen"}));
+ fireEvent.change(screen.getByLabelText("Stufe"),{target:{value:"2"}});
+ next();next();next();next();
+ fireEvent.click(screen.getByRole("checkbox",{name:/Grosser Feuersturm/}));
+ expect(document.querySelector('input[name="jutsu"][value="advanced"]')).not.toBeNull();
+ fireEvent.click(screen.getByRole("button",{name:"2. Grundlagen"}));
+ fireEvent.change(screen.getByLabelText("Stufe"),{target:{value:"1"}});
+ next();next();next();next();
+ expect(screen.queryByText("Grosser Feuersturm")).toBeNull();
+ expect(document.querySelector('input[name="jutsu"][value="advanced"]')).toBeNull();
+});
+
 it("shows one safe toast after a rejected creation and retains every configured step",async()=>{
  renderFilledCreator();fireEvent.click(screen.getByRole("button",{name:"Charakter erstellen"}));
  await waitFor(()=>expect(screen.getByRole("alert").textContent).toContain(natureUnavailableMessage));

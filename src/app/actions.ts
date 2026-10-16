@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateMaxChakra, calculateMaxHp, getCreationAbilityScores, getEffectiveHpRoll, validateCharacterLevel, validStartingSkills, skills, type AbilityScores } from "@/lib/rules";
 import {creationFailureMessage, creationRuleMessage, isStartingJutsuAllowed, jutsuUnavailableMessage, natureUnavailableMessage, type CharacterCreationResult} from "@/lib/character-creation";
 import {rollHitDie} from "@/lib/hp-roll";
+import {creatorJutsuScope} from "@/lib/jutsu-access";
 import { accessCodeLookup, hashCode, makeCode, requireCampaign, resolveCampaignAccess, setCreationHandoff, setSession } from "@/lib/session";
 
 export async function createCampaign(fd: FormData) {
@@ -81,8 +82,8 @@ export async function createCharacter(campaignId: string, fd: FormData): Promise
   const characterId = await prisma.$transaction(async tx => {
    const chakraNature = await tx.chakraNature.findUnique({where: natureId ? {id: natureId} : {key: natureKey}});
    if (!chakraNature?.playerSelectable || (natureKey && chakraNature.key !== natureKey)) throw new CreationValidationError("NATURE", natureUnavailableMessage, "nature");
-   const selected = await tx.jutsu.findMany({where: {dmOnly: false, id: {in: jutsu}, rank: {not: "S"}, OR: [{campaignId: null}, {campaignId}]}, include: {natures: {include: {nature: true}}}});
-   if (selected.length !== jutsu.length || selected.some(item => !isStartingJutsuAllowed(item, campaignId, chakraNature.key))) throw new CreationValidationError("JUTSU", jutsuUnavailableMessage, "jutsu");
+   const selected = await tx.jutsu.findMany({where: { AND: [creatorJutsuScope(campaignId, creator?.role === "DM"), { id: {in: jutsu}, rank: {in: level === 1 ? ["E", "D"] : ["E", "D", "C", "B", "A"]} }] }, include: {natures: {include: {nature: true}}}});
+   if (selected.length !== jutsu.length || selected.some(item => !isStartingJutsuAllowed(item, campaignId, chakraNature.key, level))) throw new CreationValidationError("JUTSU", jutsuUnavailableMessage, "jutsu");
    const character = await tx.character.create({data: {
     campaignId, name, level, background, alignment, description, speed, ...scores,
     portraitOwnerKey: creator?.role === "PLAYER" ? createHash("sha256").update(creator.id).digest("hex") : null,

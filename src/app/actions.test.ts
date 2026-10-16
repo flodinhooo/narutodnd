@@ -9,6 +9,12 @@ vi.mock("next/navigation",()=>({redirect:vi.fn()}));
 vi.mock("@/lib/rules",async()=>await import("../lib/rules"));
 import {createCharacter} from "./actions";
 const form=()=>{const fd=new FormData();for(const [k,v] of Object.entries({name:"Shinobi",level:"1",mode:"MANUAL",hitDie:"d8",hitDieAbilityBonus:"CON",str:"10",dex:"10",con:"13",int:"10",wis:"10",cha:"10",nature:"FIRE",maxHp:"9999",finalCon:"20",acOverride:"99"}))fd.set(k,v);return fd;};
+it("rejects a forged A-rank starting technique on level 1 before creating a character",async()=>{
+ const fd=form();fd.append("jutsu","advanced");
+ prisma.jutsu.findMany.mockResolvedValueOnce([{id:"advanced",rank:"A",campaignId:null,requiredNatureKeys:null,natures:[{nature:{key:"FIRE",playerSelectable:true}}]}]);
+ await expect(createCharacter("campaign",fd)).resolves.toMatchObject({ok:false,code:"JUTSU"});
+ expect(prisma.character.create).not.toHaveBeenCalled();
+});
 beforeEach(()=>{vi.clearAllMocks();prisma.chakraNature.findUnique.mockResolvedValue({id:"fire",key:"FIRE",playerSelectable:true});prisma.jutsu.findMany.mockResolvedValue([]);prisma.character.create.mockResolvedValue({id:"new"});prisma.$transaction.mockImplementation(fn=>fn(prisma));});
 it("persists server-derived scores and HP ignoring forged values",async()=>{await createCharacter("campaign",form());expect(requireCampaign).toHaveBeenCalledWith("campaign");expect(prisma.character.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({con:14,maxHp:10,currentHp:10,currentChakra:175,hitDie:"d8",hitDieAbilityBonus:"CON",acOverride:null})}));});
 it.each(["d6","d12","", "d10"])("rejects forged die/bonus %s before persistence",async die=>{const fd=form();fd.set("hitDie",die);await expect(createCharacter("campaign",fd)).resolves.toMatchObject({ok:false});expect(prisma.character.create).not.toHaveBeenCalled();});
