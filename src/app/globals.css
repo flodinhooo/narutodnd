@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+.character-resources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 28px 0 20px; }
+.character-resource { min-width: 0; }
+.character-resource-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.character-resource-heading > span { color: #e2b5b5; font-size: 14px; font-weight: 700; }
+.character-resource--chakra .character-resource-heading > span { color: #a9d3f7; }
+.character-resource-heading strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.character-resource-heading strong span { color: var(--muted); font-size: 14px; font-weight: 400; }
+.character-resource-track { height: 24px; overflow: hidden; border-radius: 999px; background: #301b20; box-shadow: inset 0 0 0 1px #73404a66; }
+.character-resource-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b93649, #ed6b72); box-shadow: inset 0 2px 0 #ffffff26; }
+.character-resource--chakra .character-resource-track { background: #172a3b; box-shadow: inset 0 0 0 1px #4277a166; }
+.character-resource--chakra .character-resource-fill { background: linear-gradient(90deg, #2774bd, #69baf2); }
+.character-resource-status { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 700px) { .character-resources { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+
 /* Visible navigation for the character management sections. */
 .tabs-list {
   display: flex;
