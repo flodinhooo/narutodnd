@@ -8,8 +8,8 @@ import JutsuRules from "@/components/JutsuRules";
 import {setJutsuRelease} from "@/app/campaign/jutsu-library-actions";
 export default async function JutsuPage({params}:{params:Promise<{campaignId:string;slug:string}>}){
  const {campaignId,slug}=await params;const session=await getSession();if(!session||session.campaignId!==campaignId)notFound();const dm=session.role==="DM";
- const campaign=await prisma.campaign.findUniqueOrThrow({where:{id:campaignId},select:{jutsuLibraryAccess:true}});if(!dm&&campaign.jutsuLibraryAccess!=="OPEN")notFound();
- const scope=dm?campaignJutsuScope(campaignId):playerJutsuScope(campaignId);
+ const campaign=await prisma.campaign.findUniqueOrThrow({where:{id:campaignId},select:{jutsuLibraryAccess:true}});
+ const scope=dm?campaignJutsuScope(campaignId):{AND:[playerJutsuScope(campaignId),...(campaign.jutsuLibraryAccess!=="OPEN"?[{characterLinks:{some:{character:{campaignId,npc:null}}}}]:[])]};
  const j=await prisma.jutsu.findFirst({where:{AND:[scope,{slug}]},include:{natures:{include:{nature:true}},releases:{where:{campaignId}}}});if(!j)notFound();
  const [pre,unlocks]=await Promise.all([prisma.jutsuPrerequisite.findMany({where:{jutsuId:j.id,prerequisiteJutsu:scope},include:{prerequisiteJutsu:true}}),prisma.jutsuPrerequisite.findMany({where:{prerequisiteJutsuId:j.id,jutsu:scope},include:{jutsu:true}})]);
  return <main className="shell narrow"><Link className="back" href={`/campaign/${campaignId}/jutsu-library`} >← Jutsu-Bibliothek</Link><div className="eyebrow">RANG {j.rank} · {techniqueType(j.category)}</div><h1>{jutsuTitle(j)}</h1><div className="jutsu-tags">{jutsuUsages(j).map(t=><span key={t}>{t}</span>)}</div><p>{jutsuSummary(j.description)}</p>

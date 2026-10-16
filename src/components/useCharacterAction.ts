@@ -17,7 +17,8 @@ export function useCharacterAction(scope:string){
   try{
    const result=await action(id);
    if(result.ok||!result.retryable){ids.current.delete(key);try{sessionStorage.removeItem(storageKey);}catch{}}
-   if(result.ok){toast.success(result.message);router.refresh();}else toast.error(result.message);
+   if(result.ok)toast.success(result.message);else toast.error(result.message);
+   router.refresh();
    return result;
   }catch{toast.error("Keine Bestätigung erhalten. Erneut klicken, um dieselbe Aktion zu prüfen.");return null;}
   finally{busy.current=false;setPending(false);}

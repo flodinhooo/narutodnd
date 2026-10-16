@@ -23,7 +23,7 @@ import RunPage from "./[campaignId]/encounters/runs/[runId]/page";
 
 let directory: string, campaignId: string, foreignId: string, enemyId: string, shinobiId: string, pcId: string, civilianId: string, npcId: string, foreignEnemy: string, foreignNpc: string, foreignCharacter: string, locationId: string, foreignLocation: string;
 let legacySnapshot: unknown;
-const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "legacy-encounter"); for (const row of rows) { delete row.portraitOwnerKey; delete row.combatProfile; } return rows; };
+const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "legacy-encounter"); for (const row of rows) { delete row.portraitOwnerKey; delete row.combatProfile; delete row.activityVersion; delete row.controlClaimHash; } return rows; };
 const legacy = async () => Promise.all([legacyCharacters(), database.client.npc.findMany({ where: { campaignId: "legacy-encounter" } }), database.client.enemyTemplate.findMany({ where: { campaignId: "legacy-encounter" } })]);
 const fd = (data: Record<string, string>) => { const f = new FormData(); for (const [key, value] of Object.entries(data)) f.set(key, value); return f; };
 const eventId = randomUUID();
@@ -51,7 +51,7 @@ beforeAll(async () => {
   for (const name of (await readdir(migrations)).filter(n => /^\d/.test(n)).sort()) {
     if (name === "20261014160000_encounters") {
       await database.client.campaign.create({ data: { id: "legacy-encounter", name: "Legacy", dmCodeHash: "ldm", playerCodeHash: "lp" } });
-      await database.client.character.create({ data: { campaignId: "legacy-encounter", name: "Legacy PC", currentHp: 3, maxHp: 22, currentChakra: 75 }, select: { id: true } });
+      await database.client.$executeRawUnsafe('INSERT INTO Character (id,campaignId,name,currentHp,maxHp,currentChakra,updatedAt) VALUES (?,?,?,?,?,?,?)', "legacy-pc", "legacy-encounter", "Legacy PC", 3, 22, 75, Date.now());
       await database.client.npc.create({ data: { campaignId: "legacy-encounter", name: "Legacy NPC", dmSecrets: "Legacy secret" } });
       await database.client.enemyTemplate.create({ data: { ...enemyTemplateSeeds[6].data, campaignId: "legacy-encounter" } });
       legacySnapshot = await legacy();

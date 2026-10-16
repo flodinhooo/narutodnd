@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { getSession } from "./session";
 import { PortraitError } from "./portrait-image";
 import { createHash } from "node:crypto";
+import {controllerKey} from "./character-control";
 export const portraitOwnerKey = (id: string) => createHash("sha256").update(id).digest("hex");
 export type PortraitKind = "character" | "npc" | "enemy";
 export async function portraitSubject(campaignId: string, kind: string, id: string, write = false) {
@@ -12,7 +13,7 @@ export async function portraitSubject(campaignId: string, kind: string, id: stri
   if (kind === "character") {
     const c = await prisma.character.findFirst({ where: { id, campaignId }, include: { npc: { select: { id: true, playerVisible: true, archived: true } } } });
     if (!c || (actor.role !== "DM" && c.npc && (!c.npc.playerVisible || c.npc.archived))) throw new PortraitError("Bild nicht verfügbar.", 404);
-    canEdit ||= !c.npc && c.portraitOwnerKey === portraitOwnerKey(actor.id);
+    canEdit ||= !c.npc && (c.portraitOwnerKey === portraitOwnerKey(actor.id) || (!!c.portraitOwnerKey && c.portraitOwnerKey === await controllerKey()));
     scope = c.npc ? { npcId: c.npc.id } : { characterId: id };
   } else if (kind === "npc") {
     const n = await prisma.npc.findFirst({ where: { id, campaignId } });

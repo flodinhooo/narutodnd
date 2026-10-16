@@ -18,7 +18,9 @@ const commandSchema=z.discriminatedUnion("kind",[
  z.object({kind:z.literal("ATTACK"),itemId:z.string().max(100).nullable(),mode:z.enum(["NORMAL","ADVANTAGE","DISADVANTAGE"]),throwWeapon:z.boolean()}),
  z.object({kind:z.literal("DAMAGE"),attackId:z.string().min(1).max(100)}),
 ]);
-class PlayerError extends Error {}
+class PlayerError extends Error {
+ constructor(message:string,public retryable=false){super(message);}
+}
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
 const refresh=(campaignId:string)=>revalidatePath(`/campaign/${campaignId}`,"layout");
 
@@ -36,7 +38,7 @@ export async function characterAction(campaignId:string,characterId:string,reque
    const prior=await tx.characterActivity.findUnique({where:{characterId_requestId:{characterId,requestId:nonce}}});
    if(prior){if(prior.fingerprint!==fingerprint)throw new PlayerError("Diese Anfrage gehört zu einer anderen Aktion.");return prior.result as CharacterResult;}
    const locked=await tx.character.updateMany({where:{id:characterId,activityVersion:c.activityVersion},data:{activityVersion:{increment:1},...(actor.role==="PLAYER"?{portraitOwnerKey:key}:{})}});
-   if(locked.count!==1)throw new PlayerError("Der Charakter wurde gerade geändert. Bitte erneut versuchen.");
+   if(locked.count!==1)throw new PlayerError("Der Charakter wurde gerade geändert. Bitte erneut versuchen.",true);
    c=await tx.character.findFirstOrThrow({where:{id:characterId,campaignId},include:{npc:{select:{id:true}}}});
    let result:CharacterResult;
    if(command.kind==="REST"){
@@ -87,7 +89,7 @@ export async function characterAction(campaignId:string,characterId:string,reque
   },{timeout:15000});
   refresh(campaignId);return {ok:true,message:result.message};
  }catch(error){
-  if(error instanceof PlayerError)return {ok:false,message:error.message};
+  if(error instanceof PlayerError)return {ok:false,message:error.message,retryable:error.retryable};
   if(error instanceof z.ZodError)return {ok:false,message:error.issues[0]?.code==="custom"?error.issues[0].message:"Bitte Eingaben und Würfelformeln prüfen."};
   if(error instanceof Error&&error.message==="Unauthorized")return {ok:false,message:"Dein Kampagnenzugang ist abgelaufen. Bitte erneut anmelden."};
   if(error instanceof Prisma.PrismaClientKnownRequestError&&["P2002","P2034","P2028"].includes(error.code))return {ok:false,message:"Die Aktion wird bereits verarbeitet oder der Bogen wurde geändert. Bitte erneut versuchen.",retryable:true};

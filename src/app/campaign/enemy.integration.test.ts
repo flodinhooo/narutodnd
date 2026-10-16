@@ -24,7 +24,7 @@ import NewEnemy from "./[campaignId]/bestiary/new/page";
 
 let directory: string, campaignId: string, foreignId: string, water: string, fire: string, waterJutsu: string, foreignJutsu: string;
 let legacySnapshot: unknown;
-const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "upgrade-campaign"); for (const row of rows) { delete row.portraitOwnerKey; delete row.combatProfile; } return rows; };
+const legacyCharacters = async () => { const rows = await database.client.$queryRawUnsafe<Record<string, unknown>[]>('SELECT * FROM Character WHERE campaignId = ? ORDER BY id', "upgrade-campaign"); for (const row of rows) { delete row.portraitOwnerKey; delete row.combatProfile; delete row.activityVersion; delete row.controlClaimHash; } return rows; };
 const legacyData = async () => ({ campaign: await database.client.campaign.findUnique({ where: { id: "upgrade-campaign" }, include: { npcs: true, characterRelationships: true } }), characters: await legacyCharacters(), organizations: await database.client.$queryRawUnsafe('SELECT id,campaignId,name,type,description,notes,dmSecrets,playerVisible,archived,createdAt,updatedAt,locationId FROM Organization ORDER BY id'), members: await database.client.organizationMember.findMany({ orderBy: { id: "asc" } }) });
 const input = (extra: Partial<EnemyTemplateInput> = {}): EnemyTemplateInput => ({ ...enemyTemplateSeeds[6].data, natureIds: [], jutsuIds: [], ...extra });
 function form(data: EnemyTemplateInput, version = 1) {
@@ -47,7 +47,7 @@ beforeAll(async () => {
   for (const name of (await readdir(migrations)).filter(n => /^\d/.test(n)).sort()) {
     if (name === "20261014140000_enemy_templates") {
       await database.client.campaign.create({ data: { id: "upgrade-campaign", name: "Existing campaign", dmCodeHash: "upgrade-dm", playerCodeHash: "upgrade-player" } });
-      await database.client.character.create({ data: { id: "upgrade-character", campaignId: "upgrade-campaign", name: "Existing PC", maxHp: 35, currentHp: 19, currentChakra: 123 }, select: { id: true } });
+      await database.client.$executeRawUnsafe('INSERT INTO Character (id,campaignId,name,maxHp,currentHp,currentChakra,updatedAt) VALUES (?,?,?,?,?,?,?)', "upgrade-character", "upgrade-campaign", "Existing PC", 35, 19, 123, Date.now());
       await database.client.npc.create({ data: { id: "upgrade-npc", campaignId: "upgrade-campaign", name: "Existing NPC", dmSecrets: "Preserve secrets" } });
       // Populate the historical schema before later migrations add Organization fields.
       await database.client.$executeRawUnsafe('INSERT INTO Organization (id,campaignId,name,type,updatedAt) VALUES (?,?,?,?,?)', "upgrade-team", "upgrade-campaign", "Existing team", "TEAM", Date.now());

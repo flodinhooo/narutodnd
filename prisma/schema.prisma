@@ -131,6 +131,10 @@ model Character {
   name                      String
   level                     Int                      @default(1)
   portraitOwnerKey    String?
+  controlClaimHash String?
+  activityVersion Int @default(0)
+  inventory InventoryItem[]
+  activities CharacterActivity[]
   portraitUrl               String?
   background                String                   @default("")
   alignment                 String                   @default("")
@@ -1001,4 +1005,36 @@ model CampaignJutsuRelease {
  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
  jutsu Jutsu @relation(fields: [jutsuId], references: [id], onDelete: Cascade)
  @@id([campaignId, jutsuId])
+}
+
+model InventoryItem {
+ id String @id @default(cuid())
+ characterId String
+ character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+ name String
+ category String @default("EQUIPMENT")
+ description String @default("")
+ quantity Int @default(1)
+ weight Float @default(0)
+ equipped Boolean @default(false)
+ damageDice String?
+ damageType String?
+ attackAbility String @default("DEX")
+ proficient Boolean @default(true)
+ range String @default("")
+ throwable Boolean @default(false)
+ version Int @default(1)
+ @@index([characterId])
+}
+
+model CharacterActivity {
+ id String @id @default(cuid())
+ characterId String
+ character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+ requestId String
+ fingerprint String
+ result Json
+ createdAt DateTime @default(now())
+ @@unique([characterId, requestId])
+ @@index([characterId, createdAt])
 }

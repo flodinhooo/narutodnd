@@ -44,6 +44,15 @@ it("prevents player mutations, cross-campaign releases and unsafe imports",async
  actor.role="PLAYER";await expect(setJutsuRelease("a","hidden",releaseForm())).rejects.toThrow("Unauthorized");actor.role="DM";
  for(const id of ["secret","review","foreign"])await expect(setJutsuRelease("a",id,releaseForm())).rejects.toThrow();
 });
+it("keeps learned Jutsu details accessible when the general library is closed",async()=>{
+ await db.client.campaign.update({where:{id:"a"},data:{jutsuLibraryAccess:"CLOSED"}});
+ actor.role="PLAYER";
+ try{
+  const html=renderToStaticMarkup(await Detail({params:Promise.resolve({campaignId:"a",slug:"learned"})}));
+  expect(html).toContain("DE-learned");expect(html).not.toContain("PRIVATE_SOURCE_SENTINEL");
+  await expect(Detail({params:Promise.resolve({campaignId:"a",slug:"released"})})).rejects.toThrow("NOT_FOUND");
+ }finally{await db.client.campaign.update({where:{id:"a"},data:{jutsuLibraryAccess:"OPEN"}});}
+});
 it("keeps learned techniques known when their library release is withdrawn",async()=>{
  await setJutsuRelease("a","learned",releaseForm());await setJutsuRelease("a","learned",releaseForm(false));
  expect(await db.client.jutsu.count({where:{AND:[playerJutsuScope("a"),{id:"learned"}]}})).toBe(1);

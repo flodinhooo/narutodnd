@@ -10,6 +10,7 @@ const { db, getSession } = vi.hoisted(() => ({ db: { client: null as unknown as 
 vi.mock("@/lib/prisma", () => ({ get prisma() { return db.client; } }));
 vi.mock("@/lib/session", () => ({ getSession, requireCampaign: vi.fn(async () => ({ role: "DM" })) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/headers", () => ({cookies:async()=>({get:()=>undefined})}));
 import { enableNpcCombat } from "./people-actions";
 import { portraitSubject, portraitOwnerKey } from "@/lib/portrait-access";
 import { changePortrait, portraitImage } from "@/lib/portraits";

@@ -170,3 +170,16 @@
 .jutsu-choice-card { border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0; }
 .jutsu-choice-card .jutsu-choice { border:0; padding:0; }.jutsu-choice-card p { font-size:14px; line-height:1.55; }
 .jutsu-tile summary,.jutsu-choice-card summary { cursor:pointer; color:var(--gold); }
+.player-controls { margin:28px 0; display:grid; gap:20px; }
+.player-controls>.panel { padding:22px; }.player-controls h2 { margin:0 0 12px; }.player-controls p { line-height:1.6; }
+.player-buttons { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0; }
+.player-buttons .button { font-size:13px; padding:10px 13px; }.player-rests { display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between; }
+.player-rests>div:first-child { flex:1 1 300px; }.player-attack-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:14px; margin-top:18px; }
+.player-attack-grid article,.inventory-editor { padding:16px; background:#101212; border:1px solid var(--line); border-radius:8px; }
+.inventory-list { display:grid; gap:10px; }.inventory-list article { display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; border:1px solid var(--line); padding:14px; border-radius:7px; }
+.inventory-list p { white-space:pre-line; font-size:13px; margin:8px 0; }.inventory-list small { color:var(--muted); }.inventory-editor { display:grid; gap:16px; margin:20px 0; }
+.inventory-editor fieldset { border:1px solid var(--line); border-radius:6px; padding:16px; display:grid; gap:12px; }
+.player-inventory>.section-head { margin-top:0; align-items:center; gap:12px; flex-wrap:wrap; }.player-activity ol { padding-left:20px; }.player-activity li { padding:12px 0; border-bottom:1px solid var(--line); }
+.player-activity p { margin:0 0 6px; }.player-activity small { color:var(--muted); display:block; }.character-transfer summary { cursor:pointer; }
+.character-transfer code { overflow-wrap:anywhere; user-select:all; }.player-controls label { margin:10px 0; }
+@media(max-width:600px) { .inventory-editor .two { grid-template-columns:1fr; }.player-controls>.panel { padding:16px; } }

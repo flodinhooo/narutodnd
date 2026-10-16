@@ -7,6 +7,7 @@ const { database, getSession, requireCampaign } = vi.hoisted(() => ({ database: 
 vi.mock("@/lib/prisma", () => ({ get prisma() { return database.client; } }));
 vi.mock("@/lib/session", () => ({ getSession, requireCampaign }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/headers", () => ({cookies:async()=>({get:()=>undefined})}));
 import { loreBundleSchema, loreEntityId } from "@/lib/lore-bundle";
 import { importSelectedLore } from "@/lib/lore-importer";
 import { calculateMaxChakra } from "@/lib/rules";
