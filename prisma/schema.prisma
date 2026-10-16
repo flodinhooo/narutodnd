@@ -100,6 +100,7 @@ model Campaign {
   gameSessions   GameSession[]
   locations      Location[]
   jutsuLibraryAccess JutsuLibraryAccess @default(CLOSED)
+  jutsuReleases CampaignJutsuRelease[]
   customJutsu Jutsu[]
   npcs Npc[]
   organizations Organization[]
@@ -227,6 +228,9 @@ model Jutsu {
   campaign              Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   category              String?
   dmOnly                Boolean             @default(false)
+  reviewNeeded          Boolean             @default(false)
+  sourceMarkdown        String?
+  releases              CampaignJutsuRelease[]
   progressionType       String?
   traditionProvenance   String?
   prerequisiteText      String?
@@ -989,4 +993,12 @@ model AtlasChange {
  mapId String?
  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
  @@unique([campaignId, requestId])
+}
+
+model CampaignJutsuRelease {
+ campaignId String
+ jutsuId String
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ jutsu Jutsu @relation(fields: [jutsuId], references: [id], onDelete: Cascade)
+ @@id([campaignId, jutsuId])
 }
