@@ -1,0 +1,986 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Reservoir {
+  VERY_LOW
+  LOW
+  AVERAGE
+  HIGH
+  VERY_HIGH
+  EXCEPTIONAL
+  MONSTER
+  SPECIAL
+}
+
+enum RegenRank {
+  NOVICE
+  TRAINED
+  ADVANCED
+  EXPERT
+  MASTER
+}
+
+enum SkillProficiency {
+  NONE
+  PROFICIENT
+  EXPERTISE
+}
+
+enum JutsuRank {
+  E
+  D
+  C
+  B
+  A
+  S
+}
+
+enum JutsuLibraryAccess {
+  CLOSED
+  OPEN
+}
+enum JutsuOrigin {
+  CANON
+  SHIO_HOMEBREW
+  FOUNDATION
+  DM_CUSTOM
+}
+enum JutsuPool {
+  ELEMENTAL
+  CANON
+  FOUNDATION
+  UZUMAKI
+  CHARACTER_SIGNATURE
+}
+enum GameSessionStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+enum LocationType {
+  COUNTRY
+  CITY
+  VILLAGE
+  DISTRICT
+  BUILDING
+  LANDMARK
+  OTHER
+}
+
+model Campaign {
+  atlasMaps WorldMap[]
+  atlasImports AtlasImport[]
+  atlasLocationSeeds AtlasLocationSeed[]
+  atlasChanges AtlasChange[]
+  portraits Portrait[]
+
+  id             String            @id @default(cuid())
+  name           String
+  description    String            @default("")
+  dmCodeHash     String            @unique
+  playerCodeHash String            @unique
+  dmCodeLookup   String?           @unique
+  playerCodeLookup String?         @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  characters     Character[]
+  sessions       CampaignAccessSession[]
+  gameSessions   GameSession[]
+  locations      Location[]
+  jutsuLibraryAccess JutsuLibraryAccess @default(CLOSED)
+  customJutsu Jutsu[]
+  npcs Npc[]
+  organizations Organization[]
+  characterRelationships CharacterRelationship[]
+  enemyTemplates EnemyTemplate[]
+  encounters Encounter[]
+  encounterRuns EncounterRun[]
+  missions Mission[]
+}
+
+model ChakraNature {
+  id          String                  @id @default(cuid())
+  key         String                  @unique
+  displayName String
+  description String
+  playerSelectable Boolean @default(false)
+  characters  CharacterChakraNature[]
+  jutsu       JutsuChakraNature[]
+  enemyTemplates EnemyTemplateNature[]
+}
+
+model Character {
+  portraits Portrait[]
+
+  id                        String                   @id @default(cuid())
+  campaignId                String
+  campaign                  Campaign                 @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name                      String
+  level                     Int                      @default(1)
+  portraitOwnerKey    String?
+  portraitUrl               String?
+  background                String                   @default("")
+  alignment                 String                   @default("")
+  description               String                   @default("")
+  combatProfile             Json?
+  speed                     Int                      @default(30)
+  maxHp                     Int                      @default(10)
+  currentHp                 Int                      @default(10)
+  hitDie                    String                   @default("d10")
+  hitDieAbilityBonus         String?
+  hpLegacyLevel             Int?
+  hpLegacyBase              Int?
+  hpOverrideOffset          Int?
+  hpLevels                  CharacterHpLevel[]
+  acOverride                Int?
+  initiativeOverride        Int?
+  str                       Int                      @default(10)
+  dex                       Int                      @default(10)
+  con                       Int                      @default(10)
+  int                       Int                      @default(10)
+  wis                       Int                      @default(10)
+  cha                       Int                      @default(10)
+  currentChakra             Int                      @default(0)
+  reservoir                 Reservoir                @default(AVERAGE)
+  customReservoirMultiplier Float?
+  regenRank                 RegenRank                @default(TRAINED)
+  controlRank               RegenRank                @default(TRAINED)
+  breakthroughPoints        Int                      @default(0)
+  shortRestsSinceLongRest   Int                      @default(0)
+  limitBreakUsed            Boolean                  @default(false)
+  deathSaveSuccesses        Int                      @default(0)
+  deathSaveFailures         Int                      @default(0)
+  severelyWounded           Boolean                  @default(false)
+  natureLinks               CharacterChakraNature[]
+  jutsuLinks                CharacterJutsu[]
+  skills                    SkillProficiencyRecord[]
+  savingThrows              SavingThrowProficiency[]
+  dmData                    CharacterDMData?
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  npc                       Npc?
+  encounterPlans            EncounterParticipantPlan[]
+  memberships               OrganizationMember[]
+  outgoingRelationships     CharacterRelationship[] @relation("RelationshipSource")
+  incomingRelationships     CharacterRelationship[] @relation("RelationshipTarget")
+
+  @@index([campaignId])
+}
+
+model CharacterHpLevel {
+  id            String    @id @default(cuid())
+  characterId   String
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  level         Int
+  hitDie        String
+  rawRoll       Int
+  effectiveRoll Int
+  createdAt     DateTime  @default(now())
+
+  @@unique([characterId, level])
+}
+
+model CharacterChakraNature {
+  characterId     String
+  chakraNatureId  String
+  isPrimary       Boolean      @default(false)
+  acquiredAtLevel Int          @default(1)
+  source          String       @default("CHARACTER_CREATION")
+  character       Character    @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  nature          ChakraNature @relation(fields: [chakraNatureId], references: [id])
+
+  @@id([characterId, chakraNatureId])
+}
+
+model Jutsu {
+  id                    String              @id @default(cuid())
+  slug                  String
+  name                  String
+  germanName            String?
+  japaneseName          String?
+  description           String
+  rank                  JutsuRank
+  chakraCost            Int
+  range                 String
+  duration              String
+  actionType            String
+  attackType            String?
+  damageDice            String?
+  damageType            String?
+  saveAbility           String?
+  requiresConcentration Boolean             @default(false)
+  origin                JutsuOrigin         @default(SHIO_HOMEBREW)
+  pool                  JutsuPool           @default(ELEMENTAL)
+  campaignId            String?
+  campaign              Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  category              String?
+  dmOnly                Boolean             @default(false)
+  progressionType       String?
+  traditionProvenance   String?
+  prerequisiteText      String?
+  requiredNatureKeys    String?
+  natures               JutsuChakraNature[]
+  characterLinks        CharacterJutsu[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  prerequisites         JutsuPrerequisite[] @relation("JutsuPrerequisites")
+  unlocks               JutsuPrerequisite[] @relation("JutsuUnlocks")
+  enemyTemplates        EnemyTemplateJutsu[]
+  @@unique([campaignId, slug])
+  @@index([origin, pool])
+  @@index([campaignId])
+}
+
+model JutsuPrerequisite {
+  jutsuId             String
+  prerequisiteJutsuId String
+  jutsu               Jutsu @relation("JutsuPrerequisites", fields: [jutsuId], references: [id], onDelete: Cascade)
+  prerequisiteJutsu  Jutsu @relation("JutsuUnlocks", fields: [prerequisiteJutsuId], references: [id], onDelete: Cascade)
+  @@id([jutsuId, prerequisiteJutsuId])
+}
+
+model JutsuChakraNature {
+  jutsuId        String
+  chakraNatureId String
+  jutsu          Jutsu        @relation(fields: [jutsuId], references: [id], onDelete: Cascade)
+  nature         ChakraNature @relation(fields: [chakraNatureId], references: [id], onDelete: Cascade)
+
+  @@id([jutsuId, chakraNatureId])
+}
+
+model CharacterJutsu {
+  characterId    String
+  jutsuId        String
+  source         String    @default("CHARACTER_CREATION")
+  learnedAtLevel Int       @default(1)
+  notes          String?
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  jutsu          Jutsu     @relation(fields: [jutsuId], references: [id])
+
+  @@id([characterId, jutsuId])
+}
+
+model SkillProficiencyRecord {
+  characterId String
+  skill       String
+  proficiency SkillProficiency
+  character   Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, skill])
+}
+
+model SavingThrowProficiency {
+  characterId String
+  ability     String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, ability])
+}
+
+model CharacterDMData {
+  characterId       String    @id
+  notes             String    @default("")
+  secretInformation String    @default("")
+  updatedAt         DateTime  @updatedAt
+  character         Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model CampaignAccessSession {
+  id         String   @id @default(cuid())
+  campaignId String
+  role       String
+  expiresAt  DateTime
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model GameSession {
+  id String @id @default(cuid())
+  campaignId String
+  number Int
+  title String
+  summary String @default("")
+  dmNotes String @default("")
+  playerNotes String @default("")
+  scheduledAt DateTime?
+  startedAt DateTime?
+  endedAt DateTime?
+  status GameSessionStatus @default(PLANNED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  version Int @default(1)
+  missionLinks SessionMission[]
+  encounterRunLinks SessionEncounterRun[]
+  @@unique([campaignId, number])
+  @@index([campaignId, status])
+}
+
+model Location {
+  atlasMaps WorldMap[]
+  atlasMarkers MapMarker[]
+  atlasSeedBindings AtlasLocationSeed[]
+  id String @id @default(cuid())
+  campaignId String
+  parentId String?
+  slug String
+  name String
+  type LocationType @default(OTHER)
+  shortDescription String @default("")
+  description String @default("")
+  playerVisible Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  parent Location? @relation("LocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Location[] @relation("LocationTree")
+  npcs Npc[]
+  organizations Organization[]
+  encounters Encounter[]
+  missions Mission[]
+  @@unique([campaignId, slug])
+  @@index([campaignId, playerVisible])
+}
+
+model Npc {
+  portraits Portrait[]
+
+  id String @id @default(cuid())
+  campaignId String
+  characterId String? @unique
+  locationId String?
+  name String
+  category String @default("CIVILIAN")
+  attitude String @default("NEUTRAL")
+  age Int?
+  gender String @default("")
+  description String @default("")
+  background String @default("")
+  personality String @default("")
+  occupation String @default("")
+  residence String @default("")
+  affiliation String @default("")
+  ninjaRank String @default("")
+  village String @default("")
+  clan String @default("")
+  portraitUrl String @default("")
+  publicNotes String @default("")
+  dmSecrets String @default("")
+  playerVisible Boolean @default(false)
+  archived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Restrict)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  commissionedMissions Mission[] @relation("MissionClient")
+  missionLinks MissionNpc[]
+  consequences MissionConsequence[]
+  memberships OrganizationMember[]
+  encounterPlans EncounterParticipantPlan[]
+  outgoingRelationships CharacterRelationship[] @relation("NpcRelationshipSource")
+  incomingRelationships CharacterRelationship[] @relation("NpcRelationshipTarget")
+  @@index([campaignId, playerVisible, archived])
+}
+
+model Organization {
+  id String @id @default(cuid())
+  campaignId String
+  locationId String?
+  name String
+  type String
+  description String @default("")
+  notes String @default("")
+  dmSecrets String @default("")
+  playerVisible Boolean @default(false)
+  archived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  attitude String @default("NEUTRAL")
+  consequences MissionConsequence[]
+  members OrganizationMember[]
+  @@index([campaignId, playerVisible, archived])
+}
+
+model OrganizationMember {
+  id String @id @default(cuid())
+  organizationId String
+  npcId String?
+  characterId String?
+  role String @default("")
+  isLeader Boolean @default(false)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  npc Npc? @relation(fields: [npcId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, npcId])
+  @@unique([organizationId, characterId])
+}
+
+model CharacterRelationship {
+  id String @id @default(cuid())
+  campaignId String
+  sourceNpcId String?
+  targetNpcId String?
+  sourceCharacterId String?
+  targetCharacterId String?
+  type String
+  description String @default("")
+  dmSecrets String @default("")
+  playerVisible Boolean @default(false)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sourceNpc Npc? @relation("NpcRelationshipSource", fields: [sourceNpcId], references: [id], onDelete: Cascade)
+  targetNpc Npc? @relation("NpcRelationshipTarget", fields: [targetNpcId], references: [id], onDelete: Cascade)
+  sourceCharacter Character? @relation("RelationshipSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter Character? @relation("RelationshipTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  @@index([campaignId, playerVisible])
+}
+
+enum EnemyCategory {
+  ANIMAL
+  HUMANOID
+  SHINOBI
+  MISSING_NIN
+  OTHER
+}
+
+enum EnemyDifficulty {
+  TRIVIAL
+  EASY
+  MODERATE
+  HARD
+  DEADLY
+  ELITE
+}
+
+enum EnemyNinjaRank {
+  ACADEMY
+  GENIN
+  CHUNIN
+  JONIN
+  KAGE
+}
+
+// Preparation data only. Current HP, initiative rolls and conditions belong to
+// future encounter participants, never to this reusable statblock.
+model EnemyTemplate {
+  portraits Portrait[]
+
+  id String @id @default(cuid())
+  campaignId String?
+  seedKey String? @unique
+  sourceTemplateId String?
+  name String
+  description String @default("")
+  category EnemyCategory
+  difficulty EnemyDifficulty
+  ninjaRank EnemyNinjaRank?
+  level Int @default(1)
+  recommendedLevelMin Int @default(1)
+  recommendedLevelMax Int @default(1)
+  maxHp Int
+  acOverride Int?
+  initiativeOverride Int?
+  speed Int @default(30)
+  str Int @default(10)
+  dex Int @default(10)
+  con Int @default(10)
+  int Int @default(10)
+  wis Int @default(10)
+  cha Int @default(10)
+  hasChakra Boolean @default(false)
+  reservoir Reservoir @default(AVERAGE)
+  customReservoirMultiplier Float?
+  maxChakraOverride Int?
+  controlRank RegenRank @default(TRAINED)
+  regenRank RegenRank @default(TRAINED)
+  attacks Json @default("[]")
+  abilities Json @default("[]")
+  skills Json @default("[]")
+  savingThrows Json @default("[]")
+  resistances String @default("")
+  tactics String @default("")
+  rewards String @default("")
+  experience Int?
+  archived Boolean @default(false)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sourceTemplate EnemyTemplate? @relation("EnemyTemplateCopies", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  copies EnemyTemplate[] @relation("EnemyTemplateCopies")
+  natureLinks EnemyTemplateNature[]
+  jutsuLinks EnemyTemplateJutsu[]
+  encounterPlans EncounterParticipantPlan[]
+  @@index([campaignId, archived, category, difficulty])
+}
+
+model EnemyTemplateNature {
+  templateId String
+  chakraNatureId String
+  template EnemyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  nature ChakraNature @relation(fields: [chakraNatureId], references: [id], onDelete: Restrict)
+  @@id([templateId, chakraNatureId])
+}
+
+model EnemyTemplateJutsu {
+  templateId String
+  jutsuId String
+  template EnemyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  jutsu Jutsu @relation(fields: [jutsuId], references: [id], onDelete: Restrict)
+  @@id([templateId, jutsuId])
+}
+
+enum EncounterType {
+  COMBAT
+  SOCIAL
+  EXPLORATION
+  CHASE
+  MIXED
+}
+
+enum EncounterStatus {
+  DRAFT
+  READY
+  ARCHIVED
+}
+
+enum EncounterRunStatus {
+  PREPARING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EncounterSide {
+  ALLY
+  HOSTILE
+  NEUTRAL
+}
+
+model Encounter {
+  id String @id @default(cuid())
+  campaignId String
+  locationId String?
+  name String
+  description String @default("")
+  type EncounterType @default(COMBAT)
+  difficulty EnemyDifficulty @default(MODERATE)
+  dmNotes String @default("")
+  status EncounterStatus @default(DRAFT)
+  events Json @default("[]")
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  participants EncounterParticipantPlan[]
+  runs EncounterRun[]
+  missionLinks MissionEncounter[]
+  @@index([campaignId, status])
+}
+
+model EncounterParticipantPlan {
+  id String @id @default(cuid())
+  encounterId String
+  enemyTemplateId String?
+  characterId String?
+  npcId String?
+  quantity Int @default(1)
+  side EncounterSide @default(HOSTILE)
+  overrides Json @default("{}")
+  notes String @default("")
+  createdAt DateTime @default(now())
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  enemyTemplate EnemyTemplate? @relation(fields: [enemyTemplateId], references: [id], onDelete: Restrict)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Restrict)
+  npc Npc? @relation(fields: [npcId], references: [id], onDelete: Restrict)
+  runParticipants EncounterRunParticipant[]
+  @@index([encounterId])
+}
+
+model EncounterRun {
+  id String @id @default(cuid())
+  campaignId String
+  encounterId String
+  templateVersion Int
+  startRequestId String
+  startHash String
+  name String
+  description String @default("")
+  type EncounterType
+  difficulty EnemyDifficulty
+  locationName String @default("")
+  dmNotes String @default("")
+  notes String @default("")
+  summary String @default("")
+  events Json @default("[]")
+  status EncounterRunStatus @default(PREPARING)
+  round Int @default(0)
+  activeParticipantId String?
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  startedAt DateTime?
+  endedAt DateTime?
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  participants EncounterRunParticipant[] @relation("RunParticipants")
+  activeParticipant EncounterRunParticipant? @relation("ActiveParticipant", fields: [activeParticipantId], references: [id], onDelete: SetNull)
+  actions EncounterRunAction[]
+  missionLinks MissionEncounterRun[]
+  sessionLinks SessionEncounterRun[]
+  @@unique([campaignId, startRequestId])
+  @@index([campaignId, status])
+}
+
+model EncounterRunParticipant {
+  id String @id @default(cuid())
+  runId String
+  sourcePlanId String?
+  sourceKind String
+  sourceId String
+  ordinal Int
+  name String
+  side EncounterSide
+  snapshot Json
+  maxHp Int?
+  currentHp Int?
+  maxChakra Int?
+  currentChakra Int?
+  ac Int?
+  initiativeBonus Int @default(0)
+  initiative Int?
+  conditions Json @default("[]")
+  defeated Boolean @default(false)
+  unconscious Boolean @default(false)
+  severelyWounded Boolean @default(false)
+  notes String @default("")
+  run EncounterRun @relation("RunParticipants", fields: [runId], references: [id], onDelete: Cascade)
+  sourcePlan EncounterParticipantPlan? @relation(fields: [sourcePlanId], references: [id], onDelete: SetNull)
+  activeInRuns EncounterRun[] @relation("ActiveParticipant")
+  @@unique([runId, ordinal])
+}
+
+model EncounterRunAction {
+  id String @id @default(cuid())
+  runId String
+  requestId String
+  payloadHash String
+  kind String
+  appliedVersion Int
+  createdAt DateTime @default(now())
+  run EncounterRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  @@unique([runId, requestId])
+}
+
+enum MissionRank {
+  D
+  C
+  B
+  A
+  S
+}
+enum MissionStatus {
+  DRAFT
+  AVAILABLE
+  ACCEPTED
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+enum ObjectiveStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+enum ConsequenceKind {
+  NPC_ATTITUDE
+  ORGANIZATION_ATTITUDE
+  UNLOCK_MISSION
+  REVEAL_INFORMATION
+  UNLOCK_OBJECTIVE
+}
+model Mission {
+  id String @id @default(cuid())
+  campaignId String
+  sourceTemplateId String?
+  clientNpcId String?
+  locationId String?
+  title String
+  rank MissionRank
+  description String @default("")
+  publicInformation String @default("")
+  rewards String @default("")
+  dmNotes String @default("")
+  status MissionStatus @default(DRAFT)
+  playerVisible Boolean @default(false)
+  archived Boolean @default(false)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sourceTemplate MissionTemplate? @relation(fields: [sourceTemplateId], references: [id], onDelete: Restrict)
+  clientNpc Npc? @relation("MissionClient", fields: [clientNpcId], references: [id], onDelete: Restrict)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  objectives MissionObjective[]
+  npcs MissionNpc[]
+  encounters MissionEncounter[]
+  runs MissionEncounterRun[]
+  sessions SessionMission[]
+  consequences MissionConsequence[] @relation("MissionConsequences")
+  targetedConsequences MissionConsequence[] @relation("ConsequenceTargetMission")
+  applications MissionConsequenceApplication[]
+  actions MissionAction[]
+  @@unique([campaignId, sourceTemplateId])
+  @@index([campaignId, status, playerVisible, archived])
+}
+model MissionObjective {
+  id String @id @default(cuid())
+  missionId String
+  title String
+  description String @default("")
+  position Int
+  status ObjectiveStatus @default(PENDING)
+  playerVisible Boolean @default(false)
+  optional Boolean @default(false)
+  enabled Boolean @default(true)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  dependencies MissionObjectiveDependency[] @relation("DependentObjective")
+  dependents MissionObjectiveDependency[] @relation("RequiredObjective")
+  consequences MissionConsequence[]
+  @@index([missionId, position])
+}
+model MissionObjectiveDependency {
+  objectiveId String
+  prerequisiteId String
+  objective MissionObjective @relation("DependentObjective", fields: [objectiveId], references: [id], onDelete: Cascade)
+  prerequisite MissionObjective @relation("RequiredObjective", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+  @@id([objectiveId, prerequisiteId])
+}
+model MissionNpc {
+  missionId String
+  npcId String
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  npc Npc @relation(fields: [npcId], references: [id], onDelete: Restrict)
+  @@id([missionId, npcId])
+}
+model MissionEncounter {
+  id String @id @default(cuid())
+  missionId String
+  encounterId String
+  position Int
+  optional Boolean @default(false)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  runs MissionEncounterRun[]
+  @@index([missionId, position])
+}
+model MissionEncounterRun {
+  missionId String
+  runId String
+  missionEncounterId String?
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  run EncounterRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  missionEncounter MissionEncounter? @relation(fields: [missionEncounterId], references: [id], onDelete: SetNull)
+  @@id([missionId, runId])
+}
+model SessionMission {
+  sessionId String
+  missionId String
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  @@id([sessionId, missionId])
+}
+model SessionEncounterRun {
+  sessionId String
+  runId String
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  run EncounterRun @relation(fields: [runId], references: [id], onDelete: Restrict)
+  @@id([sessionId, runId])
+}
+model MissionConsequence {
+  id String @id @default(cuid())
+  missionId String
+  title String
+  description String @default("")
+  kind ConsequenceKind
+  npcId String?
+  organizationId String?
+  targetMissionId String?
+  objectiveId String?
+  value String @default("")
+  mission Mission @relation("MissionConsequences", fields: [missionId], references: [id], onDelete: Cascade)
+  npc Npc? @relation(fields: [npcId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  targetMission Mission? @relation("ConsequenceTargetMission", fields: [targetMissionId], references: [id], onDelete: Restrict)
+  objective MissionObjective? @relation(fields: [objectiveId], references: [id], onDelete: Restrict)
+  application MissionConsequenceApplication?
+  @@index([missionId])
+}
+model MissionConsequenceApplication {
+  id String @id @default(cuid())
+  missionId String
+  consequenceId String @unique
+  actorSessionId String
+  kind ConsequenceKind
+  title String
+  before Json
+  after Json
+  createdAt DateTime @default(now())
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  consequence MissionConsequence @relation(fields: [consequenceId], references: [id], onDelete: Restrict)
+}
+model MissionAction {
+  id String @id @default(cuid())
+  missionId String
+  requestId String
+  payloadHash String
+  kind String
+  resultId String?
+  createdAt DateTime @default(now())
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  @@unique([missionId, requestId])
+}
+model MissionTemplate {
+  id String @id @default(cuid())
+  seedKey String @unique
+  title String
+  rank MissionRank
+  summary String
+  blueprint Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  importedMissions Mission[]
+}
+
+model Portrait {
+  id String @id @default(cuid())
+  campaignId String
+  characterId String?
+  npcId String?
+  enemyTemplateId String?
+  label String @default("Standard")
+  isDefault Boolean @default(false)
+  version Int @default(1)
+  storageKey String @unique
+  mimeType String
+  width Int
+  height Int
+  byteSize Int
+  createdAt DateTime @default(now())
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  npc Npc? @relation(fields: [npcId], references: [id], onDelete: Cascade)
+  enemyTemplate EnemyTemplate? @relation(fields: [enemyTemplateId], references: [id], onDelete: Cascade)
+  @@index([campaignId])
+  @@index([characterId, isDefault])
+  @@index([npcId, isDefault])
+  @@index([enemyTemplateId, isDefault])
+}
+
+enum AtlasMapType {
+ WORLD
+ REGION
+ ISLAND
+ CITY
+ VILLAGE
+ DISTRICT
+ BUILDING
+ DUNGEON
+ CUSTOM
+}
+model WorldMap {
+ id String @id @default(cuid())
+ campaignId String
+ name String
+ description String @default("")
+ type AtlasMapType @default(CUSTOM)
+ parentId String?
+ locationId String?
+ dmNotes String @default("")
+ playerVisible Boolean @default(false)
+ archived Boolean @default(false)
+ sortOrder Int @default(0)
+ version Int @default(1)
+ seedKey String?
+ imageKey String? @unique
+ imageWidth Int?
+ imageHeight Int?
+ imageBytes Int?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ parent WorldMap? @relation("AtlasTree", fields: [parentId], references: [id], onDelete: Restrict)
+ children WorldMap[] @relation("AtlasTree")
+ location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+ markers MapMarker[] @relation("MapMarkers")
+ incomingMarkers MapMarker[] @relation("MarkerChildMap")
+ @@unique([campaignId, seedKey])
+ @@index([campaignId, parentId])
+}
+model MapMarker {
+ id String @id @default(cuid())
+ mapId String
+ x Float
+ y Float
+ title String
+ description String @default("")
+ category String @default("OTHER")
+ icon String @default("pin")
+ color String @default("#d7ae68")
+ playerVisible Boolean @default(false)
+ locationId String?
+ childMapId String?
+ seedKey String?
+ map WorldMap @relation("MapMarkers", fields: [mapId], references: [id], onDelete: Cascade)
+ location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+ childMap WorldMap? @relation("MarkerChildMap", fields: [childMapId], references: [id], onDelete: SetNull)
+ @@unique([mapId, seedKey])
+ @@index([mapId])
+}
+model AtlasWorldTemplate {
+ seedKey String @id
+ name String
+ description String
+ manifestHash String
+ blueprint Json
+}
+model AtlasImport {
+ id String @id @default(cuid())
+ campaignId String
+ seedKey String
+ rootMapId String?
+ createdAt DateTime @default(now())
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ @@unique([campaignId, seedKey])
+}
+model AtlasLocationSeed {
+ id String @id @default(cuid())
+ campaignId String
+ seedKey String
+ locationId String?
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+ @@unique([campaignId, seedKey])
+}
+model AtlasChange {
+ id String @id @default(cuid())
+ campaignId String
+ requestId String
+ payloadHash String
+ mapId String?
+ campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+ @@unique([campaignId, requestId])
+}
