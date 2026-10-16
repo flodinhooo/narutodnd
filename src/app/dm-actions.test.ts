@@ -4,8 +4,20 @@ vi.mock("@/lib/session",()=>({requireCampaign}));
 vi.mock("@/lib/prisma",()=>({prisma}));
 vi.mock("@/lib/rules",async()=>await import("../lib/rules"));
 import {updateCharacter} from "./dm-actions";
+import {Reservoir} from "@prisma/client";
+import {calculateMaxChakra} from "@/lib/rules";
 const old={id:"character",name:"Shinobi",level:1,hitDie:"d10",hpLegacyLevel:null,hpLegacyBase:null,hpOverrideOffset:8,hpLevels:Array.from({length:4},(_,i)=>({level:i+2,hitDie:"d10",rawRoll:6,effectiveRoll:6})),str:10,dex:10,con:13,int:10,wis:10,cha:10,speed:30,maxHp:19,currentHp:15,currentChakra:170,reservoir:"AVERAGE",regenRank:"TRAINED",controlRank:"TRAINED",breakthroughPoints:0,acOverride:18,customReservoirMultiplier:null};
 beforeEach(()=>{vi.clearAllMocks();prisma.character.findFirst.mockResolvedValue(old);prisma.$transaction.mockImplementation(fn=>fn(prisma));});
+it.each(Object.values(Reservoir))("saves the DM reservoir selection %s",async reservoir=>{
+ const fd=new FormData();fd.set("reservoir",reservoir);fd.set("customReservoirMultiplier","1.5");fd.set("regenRank","EXPERT");fd.set("controlRank","MASTER");
+ await updateCharacter("campaign","character",fd);
+ const max=calculateMaxChakra(old.level,old.con,old.wis,reservoir,1.5);
+ expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({reservoir,regenRank:"EXPERT",controlRank:"MASTER",customReservoirMultiplier:reservoir==="SPECIAL"?1.5:null,currentChakra:max})}));
+});
+it.each([{reservoir:"VERY HIGH"},{regenRank:"INVALID"},{controlRank:"INVALID"},{reservoir:"SPECIAL",customReservoirMultiplier:"-1"}])("rejects invalid chakra selections %j",async values=>{
+ const fd=new FormData();for(const [key,value] of Object.entries(values))fd.set(key,value);
+ await expect(updateCharacter("campaign","character",fd)).rejects.toThrow();expect(prisma.character.update).not.toHaveBeenCalled();
+});
 it("preserves DM maximum HP and unrelated fields for chakra form",async()=>{const fd=new FormData();fd.set("currentChakra","50");await updateCharacter("campaign","character",fd);expect(requireCampaign).toHaveBeenCalledWith("campaign",true);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({name:"Shinobi",maxHp:19,currentHp:15,currentChakra:50,acOverride:18,str:10})}));});
 it("honors explicit DM HP override and preserves damage",async()=>{const fd=new FormData();fd.set("maxHp","25");fd.set("con","14");await updateCharacter("campaign","character",fd);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({maxHp:25,currentHp:21,con:14,currentChakra:175})}));});
 it("keeps HP overrides when ability or level changes",async()=>{const fd=new FormData();fd.set("level","5");fd.set("con","14");await updateCharacter("campaign","character",fd);expect(prisma.character.update).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({maxHp:52,currentHp:48,hpOverrideOffset:8,level:5,con:14})}));});

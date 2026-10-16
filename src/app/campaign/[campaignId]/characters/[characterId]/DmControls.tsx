@@ -172,10 +172,10 @@ export default function DmControls({campaignId, characterId, character, natures,
                     Chakra
                 </button>
             </div>
-            <label>Reservoir<select name="reservoir"
+            <label>Chakra-Level (Reservoir)<select name="reservoir"
                                     defaultValue={character.reservoir}>{["VERY_LOW", "LOW", "AVERAGE", "HIGH", "VERY_HIGH", "EXCEPTIONAL", "MONSTER", "SPECIAL"].map(x =>
-                <option key={x}>{x.replaceAll("_", " ")}</option>)}</select></label><label>Special multiplier<input
-                name="customReservoirMultiplier" type="number" step=".05"
+                <option key={x} value={x}>{x.replaceAll("_", " ")}</option>)}</select></label><label>Special multiplier<input
+                name="customReservoirMultiplier" type="number" min="0.05" step=".05"
                 defaultValue={character.customReservoirMultiplier ?? 1}/></label><label>Regeneration<select
                 name="regenRank"
                 defaultValue={character.regenRank}>{["NOVICE", "TRAINED", "ADVANCED", "EXPERT", "MASTER"].map(x =>
