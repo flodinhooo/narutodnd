@@ -79,6 +79,7 @@ describe("safe character creation with actual seed values and SQLite",()=>{
   expect((await database.client.chakraNature.create({data:{key:"FUTURE_SPECIAL",displayName:"Future",description:"Special"}})).playerSelectable).toBe(false);
  });
  it("the real Creator loader hides special natures, foreign jutsu and S ranks",async()=>{
+  await database.client.campaignJutsuRelease.createMany({data:[globalFire,mixedSpecial,sRankJutsu].map(jutsuId=>({campaignId,jutsuId}))});
   const page=await NewCharacter({params:Promise.resolve({campaignId})});
   expect(page.props.natures.map((n:{key:string})=>n.key).sort()).toEqual([...basicNatureKeys].sort());
   expect(page.props.jutsu.map((j:{id:string})=>j.id)).toContain(globalFire);

@@ -26,6 +26,11 @@ export async function updateCharacter(campaignId: string, characterId: string, s
   // calculateMaxHp refuses missing rolls, including direct multi-level jumps.
   const hp = getCharacterHpChange(old, {level, con, hpLevels: old.hpLevels}, submitted.get("maxHp"));
   const reservoir = String(fd.get("reservoir")) as Reservoir;
+  if (!Object.values(Reservoir).includes(reservoir)) throw new Error("Ungültiges Chakra-Reservoir.");
+  const regenRank = String(fd.get("regenRank")) as RegenRank, controlRank = String(fd.get("controlRank")) as RegenRank;
+  if (![regenRank, controlRank].every(rank => Object.values(RegenRank).includes(rank))) throw new Error("Ungültige Chakra-Regeneration oder Chakra-Kontrolle.");
+  const multiplier = Number(fd.get("customReservoirMultiplier") || 1);
+  if (reservoir === "SPECIAL" && (!Number.isFinite(multiplier) || multiplier <= 0)) throw new Error("Der Chakra-Multiplikator muss größer als 0 sein.");
   const maxChakra = calculateMaxChakra(level, con, wis, reservoir, Number(fd.get("customReservoirMultiplier") || 1));
   const oldMax = calculateMaxChakra(old.level, old.con, old.wis, old.reservoir, old.customReservoirMultiplier ?? 1);
   const requestedChakra = submitted.get("currentChakra");
@@ -35,8 +40,8 @@ export async function updateCharacter(campaignId: string, characterId: string, s
    speed: Math.max(0, Number(fd.get("speed"))), ...hp,
    acOverride: fd.get("acOverride") ? Number(fd.get("acOverride")) : null,
    str: Number(fd.get("str")), dex: Number(fd.get("dex")), con, int: Number(fd.get("int")), wis, cha: Number(fd.get("cha")),
-   reservoir, customReservoirMultiplier: reservoir === "SPECIAL" ? Number(fd.get("customReservoirMultiplier")) : null,
-   regenRank: String(fd.get("regenRank")) as RegenRank, controlRank: String(fd.get("controlRank")) as RegenRank,
+   reservoir, customReservoirMultiplier: reservoir === "SPECIAL" ? multiplier : null,
+   regenRank, controlRank,
    currentChakra: requestedChakra === null ? preserveChakra(old.currentChakra, oldMax, maxChakra) : clamp(Number(requestedChakra), 0, maxChakra),
    breakthroughPoints: Math.max(0, Number(fd.get("breakthroughPoints"))),
   };

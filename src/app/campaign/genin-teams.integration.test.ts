@@ -150,7 +150,7 @@ it("hides private techniques from an open library, detail pages, sheets and char
   await importSelectedLore(db(), campaignId, packet(), selection(), true);
   getSession.mockResolvedValue({ campaignId, role: "PLAYER" });
   const library = await Library({ params: Promise.resolve({ campaignId }), searchParams: Promise.resolve({}) }); expect(output(library)).not.toContain("PRIVATE_TECHNIQUE");
-  const detail = await JutsuDetail({ params: Promise.resolve({ campaignId, slug: "fixture-signature-0" }) }); expect(output(detail)).not.toContain("PRIVATE_TECHNIQUE");
+  await expect(JutsuDetail({ params: Promise.resolve({ campaignId, slug: "fixture-signature-0" }) })).rejects.toThrow("404");
   const n = await db().npc.findFirstOrThrow({ where: { campaignId, name: "Fixture Person 0" } }); await db().npc.update({ where: { id: n.id }, data: { playerVisible: true } });
   const sheet = await Sheet({ params: Promise.resolve({ campaignId, characterId: n.characterId! }) }); expect(output(sheet)).not.toContain("PRIVATE_TECHNIQUE");
   expect(isStartingJutsuAllowed({ dmOnly: true, rank: "D", campaignId, requiredNatureKeys: "[]", natures: [{ nature: { key: "WATER", playerSelectable: true } }] }, campaignId)).toBe(false);

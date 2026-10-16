@@ -89,3 +89,22 @@
 .lore-importer details { padding: 12px 0; min-width: 0; overflow-wrap: anywhere; }
 .lore-importer summary { cursor: pointer; }
 .lore-importer .check { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.jutsu-filters { display:flex; flex-wrap:wrap; gap:14px; align-items:end; margin:24px 0; }
+.jutsu-filters label { display:grid; gap:6px; flex:1 1 150px; font-size:13px; }
+.jutsu-filters label:first-child { flex-basis:260px; }
+.jutsu-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:18px; }
+.jutsu-rank-section { margin:32px 0; }.jutsu-rank-section h2 { margin-bottom:16px; }
+.jutsu-tile { min-width:0; display:flex; flex-direction:column; gap:10px; padding:22px; overflow-wrap:anywhere; }
+.jutsu-tile h3 { margin:0; font-size:21px; line-height:1.3; }.jutsu-tile p { margin:0; }
+.jutsu-summary { flex:1; }.jutsu-tags { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.jutsu-tags span { border:1px solid var(--line); border-radius:20px; padding:3px 9px; font-size:12px; color:var(--gold); }
+.jutsu-release { margin-top:12px; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:10px; }
+.jutsu-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:18px; margin:24px 0; }
+.jutsu-facts dt { font-size:12px; opacity:.65; }.jutsu-facts dd { margin:4px 0 0; }
+.jutsu-rules p { white-space:pre-line; margin:12px 0; line-height:1.65; }
+.jutsu-source { white-space:pre-wrap; overflow-wrap:anywhere; max-height:500px; overflow:auto; }
+.jutsu-choice-card { border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0; }
+.jutsu-choice-card .jutsu-choice { border:0; padding:0; }.jutsu-choice-card p { font-size:14px; line-height:1.55; }
+.jutsu-tile summary,.jutsu-choice-card summary { cursor:pointer; color:var(--gold); }
+.jutsu-pagination { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:18px; margin:28px 0; }
