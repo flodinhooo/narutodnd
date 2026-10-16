@@ -10,6 +10,15 @@ Vercel: Projektverzeichnis `narutodnd`, Build Command `npm run vercel-build`.
 `CAMPAIGN_ACCESS_LOOKUP_SECRET` und `PUBLIC_APP_URL` konfigurieren. Bei Übernahme
 bestehender Kampagnen den bisherigen Lookup-Schlüssel beibehalten.
 
+Ohne `CAMPAIGN_ACCESS_LOOKUP_SECRET` liefert das Erstellen einer Kampagne in
+Production HTTP 500. Einen privaten Zufallswert einmalig mit
+`node -p "require('crypto').randomBytes(32).toString('hex')"` erzeugen und in
+Vercel unter Settings → Environment Variables als
+`CAMPAIGN_ACCESS_LOOKUP_SECRET` für Production eintragen. Den Wert dauerhaft
+beibehalten. Anschließend neu deployen; bestehende Deployments übernehmen neue
+Umgebungsvariablen nicht. Der Vercel-Build prüft nun Datenbank-URL und Schlüssel,
+bevor er den Prisma-Client generiert.
+
 Nach Freigabe der Umstellung einmalig Migrationen ausführen:
 
 ```powershell

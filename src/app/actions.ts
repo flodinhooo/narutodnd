@@ -13,6 +13,7 @@ export async function createCampaign(fd: FormData) {
   if (!name) throw new Error("Campaign name is required");
   const dm = makeCode("DM"); const player = makeCode("P");
   const campaign = await prisma.campaign.create({ data: { name, description: String(fd.get("description") || ""), dmCodeHash: hashCode(dm), playerCodeHash: hashCode(player), dmCodeLookup: accessCodeLookup(dm), playerCodeLookup: accessCodeLookup(player) } });
+  await setSession(campaign.id, "DM");
   await setCreationHandoff(campaign.id,dm,player); redirect(`/campaign/${campaign.id}/access`);
 }
 export async function continueAsDm(campaignId:string){const handoff=await import("@/lib/session").then(x=>x.getCreationHandoff());if(!handoff||handoff.campaignId!==campaignId)throw new Error("Creation credentials expired");const campaign=await prisma.campaign.findUniqueOrThrow({where:{id:campaignId}});if(hashCode(handoff.dmCode)!==campaign.dmCodeHash)throw new Error("Creation credentials invalid");await setSession(campaignId,"DM");redirect(`/campaign/${campaignId}`);}
