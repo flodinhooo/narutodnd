@@ -88,11 +88,10 @@ export default function DmControls({campaignId, characterId, character, natures,
     const learned = new Set(character.jutsuLinks.map(x => x.jutsuId));
     return <section className="dm-panel">
         <div className="eyebrow">DM WORKSHOP</div>
-        <h2>Manage character</h2><p className="muted">Server-authorized controls. Switching tabs does not submit or
-        mutate.</p><Tabs defaultValue="character"><TabsList aria-label="DM character management"><TabsTrigger
-        value="character">Character</TabsTrigger><TabsTrigger value="combat">Combat</TabsTrigger><TabsTrigger
-        value="skills">Skills</TabsTrigger><TabsTrigger value="chakra">Chakra</TabsTrigger><TabsTrigger
-        value="jutsu">Jutsu</TabsTrigger><TabsTrigger value="notes">Notes</TabsTrigger></TabsList><TabsContent
+        <h2>Charakter verwalten</h2><p className="muted">Wähle einen Bereich zum Bearbeiten. Änderungen werden erst beim Speichern übernommen.</p><Tabs defaultValue="character"><TabsList aria-label="Bereiche der Charakterverwaltung"><TabsTrigger
+        value="character">Charakter</TabsTrigger><TabsTrigger value="combat">Kampf</TabsTrigger><TabsTrigger
+        value="skills">Fertigkeiten</TabsTrigger><TabsTrigger value="chakra">Chakra</TabsTrigger><TabsTrigger
+        value="jutsu">Jutsu</TabsTrigger><TabsTrigger value="notes">Notizen</TabsTrigger></TabsList><TabsContent
         value="character">
         <form action={async fd => call(() => updateCharacter(campaignId, characterId, fd))} className="form"><label>Name<input
             name="name" defaultValue={character.name}/></label>
