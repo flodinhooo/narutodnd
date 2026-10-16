@@ -22,6 +22,7 @@ function actor(role = "DM", campaign = campaignId, id = "dm") { getSession.mockR
 function form(op = "UPLOAD", patch: Record<string, string> = {}) { const fd = new FormData(); fd.set("op", op); fd.set("label", "Genin"); if (op === "UPLOAD") fd.set("file", new File([new Uint8Array(image)], "../../evil.png", { type: "image/png" })); for (const [k, v] of Object.entries(patch)) fd.set(k, v); return fd; }
 const portraits = () => db.client.portrait.findMany({ where: { campaignId, characterId }, orderBy: { createdAt: "asc" } });
 beforeAll(async () => {
+  vi.stubEnv("DATABASE_URL", "file:portrait-integration.sqlite");
   directory = await mkdtemp(join(tmpdir(), "shio-portraits-")); vi.stubEnv("PORTRAIT_STORAGE_ROOT", join(directory, "storage"));
   db.client = new PrismaClient({ datasourceUrl: `file:${join(directory, "test.sqlite").replaceAll("\\", "/")}` });
   for (const name of (await readdir("prisma/migrations")).filter(n => /^\d/.test(n)).sort()) { const sql = (await readFile(join("prisma/migrations", name, "migration.sql"), "utf8")).replace(/^\s*--.*$/gm, ""); for (const command of sql.split(";").map(s => s.trim()).filter(Boolean)) await db.client.$executeRawUnsafe(command); }

@@ -2,9 +2,30 @@ import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import { resolve, relative, isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
 import { PortraitError } from "./portrait-image";
+import { prisma } from "./prisma";
 
 export interface PortraitStorage { put(data: Uint8Array): Promise<string>; read(key: string): Promise<Uint8Array>; remove(key: string): Promise<void> }
 export function privateImageStorage(rootVariable: string, fallback: string): PortraitStorage {
+  if (/^postgres(?:ql)?:\/\//.test(process.env.DATABASE_URL || "")) {
+    function validate(key: string) { if (!/^[a-f0-9-]{36}\.webp$/.test(key)) throw new PortraitError("Ungültige Bildreferenz."); }
+    return {
+      async put(data) {
+        const key = `${randomUUID()}.webp`;
+        await prisma.privateImage.create({ data: { key, namespace: rootVariable, data: Buffer.from(data) } });
+        return key;
+      },
+      async read(key) {
+        validate(key);
+        const image = await prisma.privateImage.findFirst({ where: { key, namespace: rootVariable } });
+        if (!image) throw new PortraitError("Bild fehlt.", 404);
+        return image.data;
+      },
+      async remove(key) {
+        validate(key);
+        await prisma.privateImage.deleteMany({ where: { key, namespace: rootVariable } });
+      },
+    };
+  }
   if (process.env.NODE_ENV === "production" && !process.env[rootVariable]) throw new PortraitError("Privater Bildspeicher ist nicht konfiguriert.", 503);
   const root = resolve(/* turbopackIgnore: true */ process.env[rootVariable] || fallback);
   const publicRelative = relative(resolve("public"), root);

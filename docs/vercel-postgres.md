@@ -37,11 +37,17 @@ SQLite übernommen. Eine solche Übernahme benötigt einen separaten Datenimport
 `db:seed:postgres` generiert den PostgreSQL-Client. Vor Rückkehr zur lokalen
 SQLite-Entwicklung `npx prisma generate` ausführen.
 
-Portraits, Atlas-Uploads und private Lore verwenden bisher Dateispeicher. Diese
-Funktionen benötigen für Vercel einen geeigneten persistenten Speicher. Der
-Lore-Import verwendet zusätzlich SQLite-spezifische Backup-Befehle und muss vor
-Verwendung mit PostgreSQL angepasst werden. Ein Datenbankwechsel allein macht
-diese Funktionen noch nicht Vercel-tauglich.
+Bei PostgreSQL werden Portraits und Atlas-Bilder dauerhaft in `PrivateImage`
+gespeichert. `PORTRAIT_STORAGE_ROOT` und `ATLAS_STORAGE_ROOT` werden dort nicht
+benötigt. Die geschützten Bildrouten prüfen weiterhin Kampagnenzugang und
+Sichtbarkeit. SQLite nutzt weiterhin private lokale Verzeichnisse.
+Die Migration `20261016160000_private_images` wurde auf PostgreSQL angewendet.
+Die sechs Originalkarten werden über `outputFileTracingIncludes` in den
+Server-Build aufgenommen. Nach Deployment der Änderungen den Atlas-Import
+erneut ausführen. Bestehende lokale Bilddateien werden nicht automatisch kopiert.
+
+Private Lore verwendet weiterhin Dateispeicher und SQLite-spezifische
+Backup-Befehle und benötigt eine separate Anpassung für Vercel.
 
 Am 16.10.2026 nach Deployment-Bestätigung ausgeführt: PostgreSQL-Migration
 `20261016000000_init` und globaler Seed. Datenbankabfrage bestätigt 579 Jutsu,

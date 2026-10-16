@@ -28,6 +28,7 @@ async function current(id: string) { return db.client.worldMap.findUniqueOrThrow
 async function image(id: string) { const fd = request("IMAGE", id, (await current(id)).version); fd.set("file", new File([new Uint8Array(png)], "../../map.png", { type: "image/png" })); return mutateAtlas(campaignId, fd); }
 async function addMarker(mapId: string, patch = {}) { await mutateAtlas(campaignId, request("SAVE_MARKER", mapId, (await current(mapId)).version, markerData(patch))); return db.client.mapMarker.findFirstOrThrow({ where: { mapId }, orderBy: { id: "desc" } }); }
 beforeAll(async () => {
+  vi.stubEnv("DATABASE_URL", "file:atlas-integration.sqlite");
   directory = await mkdtemp(join(tmpdir(), "shio-atlas-")); vi.stubEnv("ATLAS_STORAGE_ROOT", join(directory, "storage")); db.client = new PrismaClient({ datasourceUrl: `file:${join(directory, "test.sqlite").replaceAll("\\", "/")}` });
   for (const name of (await readdir("prisma/migrations")).filter(n => /^\d/.test(n)).sort()) { const sql = (await readFile(join("prisma/migrations", name, "migration.sql"), "utf8")).replace(/^\s*--.*$/gm, ""); for (const statement of sql.split(";").map(s => s.trim()).filter(Boolean)) await db.client.$executeRawUnsafe(statement); }
   campaignId = (await db.client.campaign.create({ data: { name: "Atlas", dmCodeHash: "dm", playerCodeHash: "pc" } })).id;
